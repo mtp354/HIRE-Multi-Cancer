@@ -24,4 +24,4 @@ Contains package metadata and setup configurations.
 Other directories (optional):
 data/: For storing data used by the project.
 scripts/: For executable scripts and utilities.
-build/ or dist/: For files generated during the build process.
+build/: For files generated during the build process.
