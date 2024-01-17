@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 SAVE_PLOTS = True
 
-# Get proportion of people who died -> cumulative distribution function (CDF)
+# Get proportion of people who died at start of the year -> cumulative distribution function (CDF)
 cdf = 1 - c.life_table['Start_Num']/100000
 # Plot CDF
 if SAVE_PLOTS:
