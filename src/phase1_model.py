@@ -14,10 +14,8 @@ def get_ac_mort_age(curr_age, randVal):
     # Get conditional CDF
     condCDF = np.cumsum(condPDF)
 
-    # Iterate through conditional CDF to determine age of all-cause mortality
-    for i_age in range(len(condCDF)):
-        if randVal < condCDF[i_age]:
-            return i_age + curr_age
+    # Determine the age of death
+    np.searchsorted(condCDF, np.random.rand())
 
 def run_des(pid):
     """
