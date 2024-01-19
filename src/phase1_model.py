@@ -15,7 +15,7 @@ def get_ac_mort_age(curr_age, randVal):
     condCDF = np.cumsum(condPDF)
 
     # Determine the age of death
-    np.searchsorted(condCDF, np.random.rand())
+    return np.searchsorted(condCDF, np.random.rand())
 
 def run_des(pid):
     """
