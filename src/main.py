@@ -1,3 +1,4 @@
+
 # A super simple discrete event simulation model based on the simpy package.
 
 import configs as c
@@ -27,3 +28,4 @@ if __name__ == '__main__':
 
         end = timer()
         print(f'total time: {timedelta(seconds=end-start)}')
+
