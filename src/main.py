@@ -1,49 +1,28 @@
 # A super simple discrete event simulation model based on the simpy package.
-
-import configs as c
-import pandas as pd
 import numpy as np
 from timeit import default_timer as timer
-from datetime import timedelta
-import phase1_model as phase1
+from datetime import timedelta, datetime
 import matplotlib.pyplot as plt
-import phase1_calibration as phase1_calib
+import configs as c
+from classes import *
 
 if __name__ == '__main__':
-    if c.MODE == 'phase1':
+    start = timer()
+    model = DiscreteEventSimulation()
+    if c.MODE == 'visualize':
         # Run simplest verion of the model
-        start = timer()
-
-        cancerArr, acMortArr = phase1.run_des(c.NUM_PATIENTS)
-        cancerIncid = phase1.get_des_outputs(cancerArr, acMortArr)
-
-        # acMort_age_output = np.zeros(101)
-        # for pid in range(c.NUM_PATIENTS): # Iterate over total number of patients
-        #     acMort_age = phase1.run_des(pid) # Run one patient
-        #     acMort_age_output[acMort_age] += 1
-        
-        # # Plot distribution of all-cause mortality ages
-        # fig = plt.figure(figsize = (10,5))
-        # plt.bar(range(101), age_output)
-        # plt.xlabel("Age")
-        # plt.ylabel("Number of Patients")
-        # plt.savefig(c.OUTPUT_PATHS['ac_mort_plots'] + 'des_acmort_age_dist.png')
-
-        end = timer()
-        print(f'total time: {timedelta(seconds=end-start)}')
-
-    elif c.MODE == 'phase1_calib':
+        plt.plot(model.run(c.CANCER_PDF).get_incidence(), label='Model', color='blue')
+        plt.scatter(x=np.arange(1975-c.COHORT_YEAR,2021-c.COHORT_YEAR), y=c.CANCER_INC, label='SEER', color='darkred', alpha=0.5)
+        plt.legend(loc='upper left')
+        plt.xlabel('Age')
+        plt.ylabel('Incidence (per 100k)')
+        plt.title(f"Cancer Incidence by Age for Birthyear={c.COHORT_YEAR}, Type={c.COHORT_TYPE}")
+        plt.show()
+    elif c.MODE == 'calibrate':
         # Run calibration for simplest verion of the model
-        start = timer()
-
-        # Generate random starting cancer pdf
-        init_cancer_pdf = np.random.rand(len(range(25,71)))
-        init_cancer_pdf /= init_cancer_pdf.sum()
-
-        final_cancer_pdf = phase1_calib.anneal(init_cancer_pdf)
-
+        best = simulated_annealing(model, c.CANCER_PDF, c.NUM_ITERATIONS, c.NUM_ITERATIONS, verbose=c.VERBOSE)
         # Save as numpy file
-        np.save(c.OUTPUT_PATHS['calibration'] + 'cancer_pdf_01192024', final_cancer_pdf)
+        np.save(c.OUTPUT_PATHS['calibration'] + f"{c.COHORT_TYPE}_{c.COHORT_YEAR}_{datetime.now():%Y-%m-%d_%H:%M:%S}", best)
+    end = timer()
+    print(f'total time: {timedelta(seconds=end-start)}')
 
-        end = timer()
-        print(f'total time: {timedelta(seconds=end-start)}')
