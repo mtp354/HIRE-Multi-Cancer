@@ -21,7 +21,7 @@ if __name__ == '__main__':
     elif c.MODE == 'calibrate':
         # Run calibration for simplest verion of the model
         best = simulated_annealing(model, c.CANCER_PDF, c.NUM_ITERATIONS, c.NUM_ITERATIONS, verbose=c.VERBOSE)
-        # Save as numpy file
+        # Save as numpy file, time_stamped
         np.save(c.OUTPUT_PATHS['calibration'] + f"{c.COHORT_TYPE}_{c.COHORT_YEAR}_{datetime.now():%Y-%m-%d_%H:%M:%S}", best)
     end = timer()
     print(f'total time: {timedelta(seconds=end-start)}')
