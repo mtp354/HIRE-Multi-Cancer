@@ -6,7 +6,7 @@ import pandas as pd
 np.set_printoptions(precision=5, suppress=True)
 
 
-MODE = 'visualize'
+MODE = 'calibrate'
 # Options:
 # - calibrate: run simulated annealing for cancer incidence
 # - visualize: plot incidence and mortality
@@ -16,11 +16,12 @@ COHORT_YEAR = 1950 # birth year of the cohort
 COHORT_TYPE = 'am'  # am/af, All Male/All Female
 START_AGE = 0
 END_AGE = 100
-NUM_PATIENTS = 100_000
+NUM_PATIENTS = 1_000_000
 
 # Define simulated annealing parameters
-NUM_ITERATIONS = 100
-STEP_SIZE = 0.001
+NUM_ITERATIONS = 1000
+START_TEMP = 10
+STEP_SIZE = 0.01
 VERBOSE = True
 MASK_SIZE = 0.1  # value between 0 and 1
 
@@ -48,5 +49,5 @@ ac_pdf = np.diff(np.array(ac_cdf)) # sums to 1
 CANCER_INC = pd.read_csv(INPUT_PATHS['cancer_incid'] + '1950_BC_All_Incidence.csv', index_col = 1)['Rate'].to_numpy()
 
 # Loading in cancer pdf
-CANCER_PDF = np.random.uniform(low=0.01, high=0.1, size=(END_AGE - START_AGE + 1))  # random to start
+CANCER_PDF = 0.01*np.ones(END_AGE - START_AGE + 1)  # start
 

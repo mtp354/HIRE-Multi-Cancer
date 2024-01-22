@@ -134,11 +134,11 @@ def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE):
     - The new candidate array with values clipped between 0.0 and 1.0.
     """
     mask = np.random.random(candidate.shape) > mask_size # fraction of values to modify
-    candidate[mask] += np.random.uniform(-step_size, step_size, mask.sum())
+    candidate[mask] += np.random.uniform(-0.5*step_size, step_size, mask.sum())  # Assymetric calibration
     return np.clip(candidate, 0.0, 1.0)
 
-def simulated_annealing(dse, cancer_pdf=c.CANCER_PDF, n_iterations=c.NUM_ITERATIONS, step_size=c.STEP_SIZE, 
-                        mask_size=c.MASK_SIZE, verbose=c.VERBOSE):
+def simulated_annealing(des, cancer_pdf=c.CANCER_PDF, cancer_inc=c.CANCER_INC, n_iterations=c.NUM_ITERATIONS, 
+                        start_temp=c.START_TEMP, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE, verbose=c.VERBOSE):
     """
     Simulated annealing algorithm to optimize a given cancer probability density function.
 
@@ -153,12 +153,12 @@ def simulated_annealing(dse, cancer_pdf=c.CANCER_PDF, n_iterations=c.NUM_ITERATI
         numpy array: The optimized cancer probability density function.
     """
     best = np.copy(cancer_pdf)
-    best_eval = objective(dse.run(best).get_incidence(), cancer_pdf)  # evaluate the initial point
+    best_eval = objective(des.run(best).get_incidence(), cancer_inc)  # evaluate the initial point
     curr, curr_eval = best, best_eval  # current working solution
     for i in range(n_iterations):  # running algorithm
         candidate = step(np.copy(curr), step_size, mask_size)
-        candidate_eval = objective(dse.run(candidate).get_incidence(), cancer_pdf)
-        t = 10 /(1+np.log(i+1)) # calculate temperature for current epoch
+        candidate_eval = objective(des.run(candidate).get_incidence(), cancer_inc)
+        t = start_temp /(1+np.log(i+1)) # calculate temperature for current epoch
         if candidate_eval < best_eval:
             best, best_eval = candidate, candidate_eval 
         if verbose and i%100==0:
@@ -169,8 +169,6 @@ def simulated_annealing(dse, cancer_pdf=c.CANCER_PDF, n_iterations=c.NUM_ITERATI
             curr, curr_eval = candidate, candidate_eval  # store the new current point
     print(best_eval)
     return best
-
-
 
 
 
