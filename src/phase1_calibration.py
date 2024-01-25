@@ -8,7 +8,7 @@ import phase1_model as phase1
 sim_anneal_params = {
     'starting_T': 1.0,
     'final_T': 0.1, # 0.01
-    'cooling_rate': 0.4, # 0.9
+    'cooling_rate': 0.3, # 0.9
     'iterations': 10} # 100
 
 # Load all cancer incidence target data
@@ -37,13 +37,10 @@ def select_new_params(step, old_param):
 def generate_cancer_pdf(curr_cancer_pdf):
     new_pdf = curr_cancer_pdf.copy()
     for i in range(len(new_pdf)):
-        new_pdf[i] = select_new_params(0.2, new_pdf[i])
+        new_pdf[i] = select_new_params(0.4, new_pdf[i])
     
-    for i in range(len(new_pdf)):
-        new_pdf[i] = new_pdf[i] / new_pdf.sum()
+    new_pdf /= new_pdf.sum()
 
-    print("pdf sum:", new_pdf.sum())
-    print(new_pdf)
     return new_pdf
 
 def acceptance_prob(old_gof, new_gof, T):
@@ -53,10 +50,11 @@ def acceptance_prob(old_gof, new_gof, T):
         return np.exp((old_gof - new_gof) / T)
 
 # Simulated annealing algorithm
-def anneal(init_cancer_pdf):
+def anneal(init_cancer_pdf, init_p_cancer):
     # Get first solution for initial cdf
     cancer_pdf = init_cancer_pdf
-    init_cancer_incid = phase1.run_des(c.NUM_PATIENTS, cancer_pdf)
+    p_cancer = init_p_cancer
+    init_cancer_incid = phase1.run_des(c.NUM_PATIENTS, cancer_pdf, p_cancer)
 
     # Calculate gof
     old_gof = gof(init_cancer_incid, target_cancer_incid)
@@ -72,22 +70,24 @@ def anneal(init_cancer_pdf):
         for i in range(sim_anneal_params['iterations']):
             # Find new candidate parameters
             new_cancer_pdf = generate_cancer_pdf(cancer_pdf)
+            new_p_cancer = select_new_params(0.4, p_cancer)
 
             # Get new solutions
-            new_cancer_incid = phase1.run_des(c.NUM_PATIENTS, new_cancer_pdf)
-            
+            new_cancer_incid = phase1.run_des(c.NUM_PATIENTS, new_cancer_pdf, new_p_cancer)
+        
             # Calculate new gof
             new_gof = gof(new_cancer_incid, target_cancer_incid)
-            print("new_gof:", new_gof)
+            #print("new_gof:", new_gof)
             ap =  acceptance_prob(old_gof, new_gof, T)
-            print("ap:", ap)
+            #print("ap:", ap)
 
             # Decide if the new solution is accepted
             if np.random.uniform() < ap:
                 cancer_pdf = new_cancer_pdf
+                p_cancer = new_p_cancer
                 old_gof = new_gof
                 print(T, i, new_gof)
 
         T = T * sim_anneal_params['cooling_rate']
     
-    return cancer_pdf
+    return cancer_pdf, p_cancer

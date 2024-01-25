@@ -28,7 +28,7 @@ def get_all_cancer_age(curr_age, cancer_pdf, randVal):
     # Determine age of cancer
     return np.searchsorted(cdf, np.random.rand()) + curr_age
 
-def run_patient(pid, cancer_pdf):
+def run_patient(pid, cancer_pdf, p_cancer):
     """
     Runs discrete event simulation for one patient
     :param pid: ID number of the individual
@@ -40,23 +40,22 @@ def run_patient(pid, cancer_pdf):
 
     # Determine age of all-cause mortality
     randVal = np.random.rand()
-    new_acMort_age = get_ac_mort_age(c.START_AGE, randVal)
-    
-    # Determine age of any cancer
-    randVal = np.random.rand() # TODO: same random value for all-cause mortality? or different one?
-    new_cancer_age = get_all_cancer_age(c.START_AGE, cancer_pdf, randVal)
+    acMort_age = get_ac_mort_age(c.START_AGE, randVal)
 
-    # Determine if all-cause mortality or cancer happens first
-    # If cancer happens first, update cancer_age
-    if new_cancer_age <= new_acMort_age: # TODO: less than or less than or equal to?
-        # Once patient gets cancer, they are pulled out of the model, they have no all-cause mortality age
-        cancer_age = new_cancer_age
-    else: # Patient does not get cancer and dies from all-cause mortality
-        acMort_age = new_acMort_age
+    # Determine if a patient should develop cancer
+    randVal = np.random.rand()
+    if randVal < p_cancer: # patient develops cancer
+        # Determine age of cancer
+        randVal = np.random.rand() # TODO: same random value for all-cause mortality? or different one?
+        cancer_age = get_all_cancer_age(c.START_AGE, cancer_pdf, randVal)
+
+    # Determine if all-cause mortality or cancer happens first if patient gets cancer
+    if cancer_age != -1 and (cancer_age > acMort_age): # cancer diagnosed after all-cause mortality
+        cancer_age = -1 # patient doesn't end up getting cancer
 
     return cancer_age, acMort_age
 
-def run_des(num_patients, cancer_pdf):
+def run_des(num_patients, cancer_pdf, p_cancer):
     """
     Runs discrete event simulation for total number of specified patients
     """
@@ -64,7 +63,7 @@ def run_des(num_patients, cancer_pdf):
     acMortArr = np.zeros(len(range(c.START_AGE, c.END_AGE)))
 
     for patient in range(num_patients):
-        cancer_age, acMort_age = run_patient(patient, cancer_pdf)
+        cancer_age, acMort_age = run_patient(patient, cancer_pdf, p_cancer)
         if cancer_age != -1:
             cancerArr[c.ALL_AGES.index(cancer_age)] += 1
         if acMort_age != -1:
@@ -77,7 +76,10 @@ def run_des(num_patients, cancer_pdf):
             live[i] = c.NUM_PATIENTS - acMortArr[i]
         else:
             live[i] = live[i - 1] - acMortArr[i]
-    
+    # Restrict live and cancer Arr to the cancer incidence ages
+    live = live[c.ALL_AGES.index(25):c.ALL_AGES.index(70) + 1]
+    cancerArr = cancerArr[c.ALL_AGES.index(25):c.ALL_AGES.index(70) + 1]
+
     # Get cancer incidence for each age
     cancer_incid = cancerArr / live * 100_000
     # Only from ages 25 - 70 to align with target data

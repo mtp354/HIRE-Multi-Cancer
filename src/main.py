@@ -35,15 +35,28 @@ if __name__ == '__main__':
     elif c.MODE == 'phase1_calib':
         # Run calibration for simplest verion of the model
         start = timer()
+        print("RUNNING CALIBRATION")
+        # Initial cancer probability value
+        p_cancer = 0.02679
 
         # Generate random starting cancer pdf
         init_cancer_pdf = np.random.rand(len(range(25,71)))
         init_cancer_pdf /= init_cancer_pdf.sum()
 
-        final_cancer_pdf = phase1_calib.anneal(init_cancer_pdf)
+        # # Import previous calibration as starting pdf
+        # init_cancer_pdf = np.load(c.OUTPUT_PATHS['calibration'] + 'cancer_pdf_01192024_4.npy')
+
+        # Run calibration
+        final_cancer_pdf, final_p_cancer = phase1_calib.anneal(init_cancer_pdf, p_cancer)
+        final_p_cancer_df = pd.DataFrame(np.array([final_p_cancer]), columns = ['prob'])
 
         # Save as numpy file
-        np.save(c.OUTPUT_PATHS['calibration'] + 'cancer_pdf_01192024', final_cancer_pdf)
+        np.save(c.OUTPUT_PATHS['calibration'] + 'cancer_pdf_01252024', final_cancer_pdf)
+        final_p_cancer_df.to_excel(c.OUTPUT_PATHS['calibration'] + 'p_cancer_01252024.xlsx')
 
         end = timer()
         print(f'total time: {timedelta(seconds=end-start)}')
+
+
+# First determine if a patient should get cancer
+# Then determine the age of cancer
