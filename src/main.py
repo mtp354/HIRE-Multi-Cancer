@@ -11,7 +11,8 @@ if __name__ == '__main__':
     model = DiscreteEventSimulation()
     if c.MODE == 'visualize':
         # Run simplest verion of the model
-        plt.plot(model.run(c.CANCER_PDF).get_incidence(), label='Model', color='blue')
+        print(objective(model.run(c.CANCER_PDF).cancerIncArr, c.CANCER_INC))
+        plt.plot(model.run(c.CANCER_PDF).cancerIncArr[:-10], label='Model', color='blue')
         plt.scatter(x=np.arange(1975-c.COHORT_YEAR,2021-c.COHORT_YEAR), y=c.CANCER_INC, label='SEER', color='darkred', alpha=0.5)
         plt.legend(loc='upper left')
         plt.xlabel('Age')
@@ -22,9 +23,10 @@ if __name__ == '__main__':
         # Run calibration for simplest verion of the model
         best = simulated_annealing(model)
         # Save as numpy file, time_stamped
-        np.save(c.OUTPUT_PATHS['calibration'] + f"{c.COHORT_TYPE}_{c.COHORT_YEAR}_{datetime.now():%Y-%m-%d_%H-%M-%S}.npy", best)
+        if c.SAVE_RESULTS:
+            np.save(c.OUTPUT_PATHS['calibration'] + f"{c.COHORT_TYPE}_{c.COHORT_YEAR}_{datetime.now():%Y-%m-%d_%H-%M-%S}.npy", best)
 
-        plt.plot(model.run(best).get_incidence(), label='Model', color='blue')
+        plt.plot(model.run(best).cancerIncArr[:-10], label='Model', color='blue')
         plt.scatter(x=np.arange(1975-c.COHORT_YEAR,2021-c.COHORT_YEAR), y=c.CANCER_INC, label='SEER', color='darkred', alpha=0.5)
         plt.legend(loc='upper left')
         plt.xlabel('Age')
@@ -34,4 +36,6 @@ if __name__ == '__main__':
 
     end = timer()
     print(f'total time: {timedelta(seconds=end-start)}')
+
+
 
