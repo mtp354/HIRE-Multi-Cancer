@@ -87,6 +87,11 @@ def anneal(init_cancer_pdf, init_p_cancer):
                 p_cancer = new_p_cancer
                 old_gof = new_gof
                 print(T, i, new_gof)
+                # Just in case calibration fails, save each best parameter
+                # Save as numpy file
+                np.save(c.OUTPUT_PATHS['calibration'] + 'cancer_pdf_01262024', cancer_pdf)
+                final_p_cancer_df.to_excel(c.OUTPUT_PATHS['calibration'] + 'p_cancer_01262024.xlsx')
+                final_p_cancer_df = pd.DataFrame(np.array([p_cancer]), columns = ['prob'])
 
         T = T * sim_anneal_params['cooling_rate']
     

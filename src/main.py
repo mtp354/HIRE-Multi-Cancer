@@ -14,8 +14,18 @@ if __name__ == '__main__':
         # Run simplest verion of the model
         start = timer()
 
-        cancerArr, acMortArr = phase1.run_des(c.NUM_PATIENTS)
-        cancerIncid = phase1.get_des_outputs(cancerArr, acMortArr)
+        # Define cancer probability and cancer pdf
+        p_cancer_df = pd.read_excel(c.OUTPUT_PATHS['calibration'] + 'p_cancer_01252024.xlsx', index_col=0)
+        p_cancer = p_cancer_df.iloc[0,0]
+        cancer_pdf = np.load(c.OUTPUT_PATHS['calibration'] + 'cancer_pdf_01252024.npy')
+        
+        # Run model
+        cancerArr, acMortArr = phase1.run_des(c.NUM_PATIENTS, cancer_pdf, p_cancer)
+        # Save number of patients who develop cancer at each age or die from all-cause mort at each age as dataframes
+        cancer_df = pd.DataFrame(data = cancerArr, index = range(c.START_AGE, c.END_AGE), columns = ['Num_Patients'])
+        acMort_df = pd.DataFrame(data = acMortArr, index = range(c.START_AGE, c.END_AGE), columns = ['Num_Patients'])
+        cancer_df.to_excel(c.OUTPUT_PATHS['phase1'] + 'cancer_counts.xlsx')
+        acMort_df.to_excel(c.OUTPUT_PATHS['phase1'] + 'acMort_counts.xlsx')
 
         # acMort_age_output = np.zeros(101)
         # for pid in range(c.NUM_PATIENTS): # Iterate over total number of patients
@@ -56,7 +66,3 @@ if __name__ == '__main__':
 
         end = timer()
         print(f'total time: {timedelta(seconds=end-start)}')
-
-
-# First determine if a patient should get cancer
-# Then determine the age of cancer
