@@ -5,7 +5,7 @@ import pandas as pd
 # Options:
 # - phase1: annual risk of getting all cancers, all-cause mortality
 # - phase1_calib: calibrate all cancer incidence for phase1 of the model
-MODE = 'phase1'
+MODE = 'phase1_calib'
 
 # Define cohort characteristics
 COHORT_YEAR = 1950 # birth year of the cohort
@@ -13,7 +13,7 @@ COHORT_TYPE = 'am' # options: am (all men), af (all women)
 START_AGE = 25
 END_AGE = 100 # Everyone dies before age 100 TODO: Chin said AGE 79 this was the last year of SEER 2019? Is this right?
 ALL_AGES = range(START_AGE, END_AGE)
-NUM_PATIENTS = 1_000
+NUM_PATIENTS = 1_000_000
 
 # Cycle length
 NUM_CYCLES = 1 # number of cycles per year
