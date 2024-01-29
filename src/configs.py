@@ -20,7 +20,7 @@ END_AGE = 100
 NUM_PATIENTS = 100_000
 
 # Define simulated annealing parameters
-NUM_ITERATIONS = 200
+NUM_ITERATIONS = 250000
 START_TEMP = 10
 STEP_SIZE = 0.001
 VERBOSE = True
