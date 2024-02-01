@@ -29,7 +29,8 @@ MASK_SIZE = 0.1  # value between 0 and 1, the fraction of values to modify each 
 # Define input and output paths
 INPUT_PATHS = {
     'life_tables': './data/life_tables/ssa_ac_mort.xlsx',
-    'cancer_incid': './data/cancer_incidence/'
+    'cancer_incid': './data/cancer_incidence/',
+    'cancer_surv': './data/cancer_survival/Multi_Cancer_Survival.xlsx',
 }
 
 OUTPUT_PATHS = {
@@ -54,5 +55,12 @@ CANCER_INC = pd.read_csv(INPUT_PATHS['cancer_incid'] + '1950_BC_All_Incidence.cs
 # Loading in cancer pdf
 CANCER_PDF = np.zeros(END_AGE - START_AGE + 1)  # starting from 0 incidence and using bias optimization
 
-
+# Loading in cancer survival data
+cancer_surv = pd.read_excel(INPUT_PATHS['cancer_surv'], sheet_name=COHORT_TYPE)
+cancer_surv = cancer_surv[cancer_surv['Birth_Year'] == COHORT_YEAR].iloc[:,1:].to_numpy()  # Selecting only chosen cohort
+age_min, age_max = int(cancer_surv[:,0].min()), int(cancer_surv[:,0].max())
+# Converting to numpy array and padding with 0 for missing data
+cancer_surv_arr = np.zeros((END_AGE - START_AGE + 1, 10, 2))  # Age, Years after Diagnosis, Cause of Death
+cancer_surv = cancer_surv[:,2:].reshape(age_max-age_min+1, 10, 2)
+cancer_surv_arr[age_min:age_max+1, :, :] = cancer_surv
 

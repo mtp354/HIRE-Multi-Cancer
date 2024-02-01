@@ -1,1 +1,0 @@
-# For storing data used by the project.

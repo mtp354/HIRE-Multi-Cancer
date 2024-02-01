@@ -43,6 +43,7 @@ class Patient:
         cancer_age = np.searchsorted(np.cumsum(cancer_pdf), np.random.rand()) + self.age  # Determine age of cancer
         if cancer_age <= ac_age:  # If cancer happens before death
             self.history['Cancer'] = cancer_age  # Add to history
+            cancer_death = np.searchsorted(c.cancer_surv_arr[cancer_age - c.START_AGE, :, 0], np.random.rand())
 
         self.history['Other Death'] = ac_age  # Add to history
         return self.history
