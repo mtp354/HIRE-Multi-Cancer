@@ -1,6 +1,8 @@
 # Configurations of the multi-cancer model
 import numpy as np
 import pandas as pd
+import glob
+import os
 
 # Aesthetic Preferences
 np.set_printoptions(precision=5, suppress=True)
@@ -20,11 +22,12 @@ END_AGE = 100
 NUM_PATIENTS = 100_000
 
 # Define simulated annealing parameters
-NUM_ITERATIONS = 250000
-START_TEMP = 10
-STEP_SIZE = 0.001
+NUM_ITERATIONS = 1_000
+START_TEMP = 1
+STEP_SIZE = 0.0001
 VERBOSE = True
 MASK_SIZE = 0.1  # value between 0 and 1, the fraction of values to modify each step
+LOAD_LATEST = True  # If true, load the latest cancer_pdf from file as starting point
 
 # Define input and output paths
 INPUT_PATHS = {
@@ -52,8 +55,14 @@ condCDF = np.cumsum(condProb / sum(condProb))  # Get conditional CDF
 # Load all cancer incidence target data
 CANCER_INC = pd.read_csv(INPUT_PATHS['cancer_incid'] + '1950_BC_All_Incidence.csv', index_col = 1)['Rate'].to_numpy()
 
-# Loading in cancer pdf
+# Loading in cancer pdf, 
 CANCER_PDF = np.zeros(END_AGE - START_AGE + 1)  # starting from 0 incidence and using bias optimization
+if LOAD_LATEST:
+    list_of_files = glob.glob('./outputs/calibration/*')
+    latest_file = max(list_of_files, key=os.path.getctime)
+    CANCER_PDF = np.load(latest_file)
+
+
 
 # Loading in cancer survival data
 cancer_surv = pd.read_excel(INPUT_PATHS['cancer_surv'], sheet_name=COHORT_TYPE)

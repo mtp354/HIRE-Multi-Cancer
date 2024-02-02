@@ -2,6 +2,7 @@
 import numpy as np
 import configs as c
 from sklearn.metrics import mean_squared_error
+from scipy.signal import savgol_filter
 
 
 class Patient:
@@ -43,7 +44,7 @@ class Patient:
         cancer_age = np.searchsorted(np.cumsum(cancer_pdf), np.random.rand()) + self.age  # Determine age of cancer
         if cancer_age <= ac_age:  # If cancer happens before death
             self.history['Cancer'] = cancer_age  # Add to history
-            cancer_death = np.searchsorted(c.cancer_surv_arr[cancer_age - c.START_AGE, :, 0], np.random.rand())
+            # cancer_death = np.searchsorted(c.cancer_surv_arr[cancer_age - c.START_AGE, :, 0], np.random.rand())
 
         self.history['Other Death'] = ac_age  # Add to history
         return self.history
@@ -118,7 +119,8 @@ def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE):
     - The new candidate array with values clipped between 0.0 and 1.0.
     """
     mask = np.random.random(candidate.shape) > mask_size # fraction of values to modify
-    candidate[mask] += np.random.uniform(-0.7*step_size, step_size, mask.sum())  # Assymetric calibration
+    candidate[mask] += np.random.uniform(-step_size, step_size, mask.sum())
+    candidate = savgol_filter(candidate, 10, 3, mode='interp')  # smoothing
     return np.clip(candidate, 0.0, 1.0)
 
 def simulated_annealing(des, cancer_pdf=c.CANCER_PDF, cancer_inc=c.CANCER_INC, n_iterations=c.NUM_ITERATIONS, 
