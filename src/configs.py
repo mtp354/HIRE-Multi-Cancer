@@ -23,8 +23,8 @@ NUM_PATIENTS = 100_000
 
 # Define simulated annealing parameters
 NUM_ITERATIONS = 1_000
-START_TEMP = 1
-STEP_SIZE = 0.0001
+START_TEMP = 10
+STEP_SIZE = 0.001
 VERBOSE = True
 MASK_SIZE = 0.1  # value between 0 and 1, the fraction of values to modify each step
 LOAD_LATEST = True  # If true, load the latest cancer_pdf from file as starting point
@@ -49,8 +49,6 @@ life_table = life_table.iloc[:,0:4]
 ac_cdf = 1 - life_table['Start_Num']/100000
 # Get the probability distribution function (PDF) = CDF(n) - CDF(n-1)
 ac_pdf = np.diff(np.array(ac_cdf)) # sums to 1
-condProb = ac_pdf[START_AGE:]  # Get the conditional PDF
-condCDF = np.cumsum(condProb / sum(condProb))  # Get conditional CDF
 
 # Load all cancer incidence target data
 CANCER_INC = pd.read_csv(INPUT_PATHS['cancer_incid'] + '1950_BC_All_Incidence.csv', index_col = 1)['Rate'].to_numpy()
