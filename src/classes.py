@@ -103,7 +103,7 @@ class DiscreteEventSimulation:
             except KeyError: 
                 pass
             try:
-                self.acMortArr[patient_history['Other Death'] - c.START_AGE] += 1  # Increment the mortality count for the corresponding age
+                self.acMortArr[patient_history['Other Death'] - c.START_AGE] += 1  # Increment the mortlity count for the corresponding age
             except KeyError: 
                 pass
             try:
