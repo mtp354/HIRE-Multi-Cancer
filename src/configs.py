@@ -7,7 +7,6 @@ import os
 # Aesthetic Preferences
 np.set_printoptions(precision=5, suppress=True)
 
-
 MODE = 'calibrate'
 # Options:
 # - calibrate: run simulated annealing for cancer incidence
@@ -15,7 +14,7 @@ MODE = 'calibrate'
 SAVE_RESULTS = True  # whether to save results to file
 
 # Define cohort characteristics
-COHORT_YEAR = 1950 # birth year of the cohort
+COHORT_YEAR = 1940 # birth year of the cohort
 COHORT_TYPE = 'am'  # am/af, All Male/All Female
 START_AGE = 0
 END_AGE = 100
@@ -31,7 +30,7 @@ LOAD_LATEST = True  # If true, load the latest cancer_pdf from file as starting 
 
 # Define input and output paths
 INPUT_PATHS = {
-    'life_tables': './data/life_tables/ssa_ac_mort.xlsx',
+    'life_tables': './data/life_tables/ssa_ac_mort',
     'cancer_incid': './data/cancer_incidence/',
     'cancer_surv': './data/cancer_survival/Multi_Cancer_Survival.xlsx',
 }
@@ -42,7 +41,7 @@ OUTPUT_PATHS = {
 }
 
 # Import life tables: age from 0 too 100 (assumes everyone dies at age 100)
-life_table = pd.read_excel(INPUT_PATHS['life_tables'], sheet_name=COHORT_TYPE, index_col=0)
+life_table = pd.read_excel(INPUT_PATHS['life_tables'] + '_' + str(COHORT_YEAR) + '.xlsx', sheet_name=COHORT_TYPE, index_col=0)
 life_table = life_table.iloc[:,0:4]
 # Create the cdf and pdf for all-cause mortality
 # Get proportion of people who died at start of the year -> cumulative distribution function (CDF)
@@ -59,8 +58,6 @@ if LOAD_LATEST:
     list_of_files = glob.glob('./outputs/calibration/*')
     latest_file = max(list_of_files, key=os.path.getctime)
     CANCER_PDF = np.load(latest_file)
-
-
 
 # Loading in cancer survival data
 cancer_surv = pd.read_excel(INPUT_PATHS['cancer_surv'], sheet_name=COHORT_TYPE)
