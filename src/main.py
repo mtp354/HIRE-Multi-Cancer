@@ -33,6 +33,15 @@ if __name__ == '__main__':
         plt.ylabel('Incidence (per 100k)')
         plt.title(f"Cancer Incidence by Age for Birthyear={c.COHORT_YEAR}, Type={c.COHORT_TYPE}")
         plt.show()
+    elif c.MODE == 'intervention':
+        print(objective(model.run_intervention(c.CANCER_PDF, c.CANCER_SOJOURN_TIME_PDF, c.SCREENING_AGE).cancerIncArr, c.CANCER_INC))
+        plt.plot(model.run(c.CANCER_PDF).cancerIncArr[:-10], label='Model', color='blue')
+        plt.scatter(x=np.arange(1975-c.COHORT_YEAR,2021-c.COHORT_YEAR), y=c.CANCER_INC, label='SEER', color='darkred', alpha=0.5)
+        plt.legend(loc='upper left')
+        plt.xlabel('Age')
+        plt.ylabel('Incidence (per 100k)')
+        plt.title(f"Cancer Incidence by Age for Birthyear={c.COHORT_YEAR}, Type={c.COHORT_TYPE}")
+        plt.show()        
 
     end = timer()
     print(f'total time: {timedelta(seconds=end-start)}')

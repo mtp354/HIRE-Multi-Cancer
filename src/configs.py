@@ -7,10 +7,11 @@ import os
 # Aesthetic Preferences
 np.set_printoptions(precision=5, suppress=True)
 
-MODE = 'calibrate'
+MODE = 'intervention'
 # Options:
 # - calibrate: run simulated annealing for cancer incidence
 # - visualize: plot incidence and mortality
+# - intervention: plot incidence and mortality when screening intervention applied
 SAVE_RESULTS = True  # whether to save results to file
 
 # Define cohort characteristics
@@ -19,6 +20,10 @@ COHORT_TYPE = 'am'  # am/af, All Male/All Female
 START_AGE = 0
 END_AGE = 100
 NUM_PATIENTS = 100_000
+
+SCREENING_AGE = 40
+MEAN_CANCER_SOJORN_TIME = 3
+STD_DEV_SOJOURN_TIME = 0.5
 
 # Define simulated annealing parameters
 NUM_ITERATIONS = 100_000
@@ -30,14 +35,14 @@ LOAD_LATEST = True  # If true, load the latest cancer_pdf from file as starting 
 
 # Define input and output paths
 INPUT_PATHS = {
-    'life_tables': './data/life_tables/ssa_ac_mort',
-    'cancer_incid': './data/cancer_incidence/',
-    'cancer_surv': './data/cancer_survival/Multi_Cancer_Survival.xlsx',
+    'life_tables': '../data/life_tables/ssa_ac_mort',
+    'cancer_incid': '../data/cancer_incidence/',
+    'cancer_surv': '../data/cancer_survival/Multi_Cancer_Survival.xlsx',
 }
 
 OUTPUT_PATHS = {
-    'ac_mort_plots': './outputs/plots/ac_mort/',
-    'calibration': './outputs/calibration/'
+    'ac_mort_plots': '../outputs/plots/ac_mort/',
+    'calibration': '../outputs/calibration/'
 }
 
 # Import life tables: age from 0 too 100 (assumes everyone dies at age 100)
@@ -55,7 +60,7 @@ CANCER_INC = pd.read_csv(INPUT_PATHS['cancer_incid'] + '1950_BC_All_Incidence.cs
 # Loading in cancer pdf, 
 CANCER_PDF = np.zeros(END_AGE - START_AGE + 1)  # starting from 0 incidence and using bias optimization
 if LOAD_LATEST:
-    list_of_files = glob.glob('./outputs/calibration/*')
+    list_of_files = glob.glob('../outputs/calibration/*')
     latest_file = max(list_of_files, key=os.path.getctime)
     CANCER_PDF = np.load(latest_file)
 

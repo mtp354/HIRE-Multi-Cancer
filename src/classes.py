@@ -35,26 +35,72 @@ class Patient:
         Return a simplified string representation of the Patient object's attributes.
         """
         return f"Patient:{self.pid}, history:{self.history})"
-
     def run(self, cancer_pdf):
         self.reset()
         while 'Death' not in self.current_state:
             if self.current_state == 'Healthy':
-                condCDF = np.cumsum(c.ac_pdf[self.age:])  # Get the conditional PDF
+                condCDF = np.cumsum(c.ac_pdf[int(self.age):])  # Get the conditional PDF
                 time_to_od = np.searchsorted(condCDF/condCDF[-1], np.random.rand())
-                time_to_cancer = np.searchsorted(np.cumsum(cancer_pdf), np.random.rand())
-                if time_to_cancer <= time_to_od:  # If cancer happens before death
+                
+                time_to_cancer_onset = np.searchsorted(np.cumsum(cancer_pdf), np.random.rand())
+                sample_sojourn_time = np.random.normal(c.MEAN_CANCER_SOJORN_TIME, c.STD_DEV_SOJOURN_TIME)
+                time_to_cancer_detectable = time_to_cancer_onset + sample_sojourn_time
+                
+                if time_to_cancer_detectable <= time_to_od:  # If cancer happens before death
                     self.current_state = 'Cancer'
-                    self.age += time_to_cancer
+                    self.age += time_to_cancer_detectable
                 else:
                     self.current_state = 'Other Death'
                     self.age += time_to_od
                 self.history[self.current_state] = self.age
 
             if self.current_state == 'Cancer':
-                time_at_risk = min(10, c.END_AGE-self.age-1)
-                time_to_cd = np.searchsorted(c.cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 0], np.random.rand())
-                time_to_od = np.searchsorted(c.cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 1], np.random.rand())
+                time_at_risk = min(10, c.END_AGE-int(self.age)-1)
+                time_to_cd = np.searchsorted(c.cancer_surv_arr[int(self.age) - c.START_AGE, :1+time_at_risk, 0], np.random.rand())
+                time_to_od = np.searchsorted(c.cancer_surv_arr[int(self.age) - c.START_AGE, :1+time_at_risk, 1], np.random.rand())
+                if time_to_od < time_to_cd:  # # If other death happens before cancer
+                    self.current_state = 'Other Death'
+                    self.age += time_to_od
+                elif time_to_cd < time_at_risk:  # If cancer death happens before other death
+                    self.current_state = 'Cancer Death'
+                    self.age += time_to_cd
+                else:
+                    self.current_state = 'Healthy'
+                    self.age += time_at_risk
+                self.history[self.current_state] = self.age
+        return self.history
+
+    def run_intervention(self, cancer_pdf):
+        self.reset()
+        while 'Death' not in self.current_state:
+            if self.current_state == 'Healthy':
+                condCDF = np.cumsum(c.ac_pdf[int(self.age):])  # Get the conditional PDF
+                time_to_od = np.searchsorted(condCDF/condCDF[-1], np.random.rand())
+                
+                time_to_cancer_onset = np.searchsorted(np.cumsum(cancer_pdf), np.random.rand())
+                sample_sojourn_time = np.random.normal(c.MEAN_CANCER_SOJORN_TIME, c.STD_DEV_SOJOURN_TIME)
+                time_to_cancer_detectable = time_to_cancer_onset + sample_sojourn_time
+                
+                if time_to_cancer_detectable <= time_to_od:  # If cancer detected before death
+                    self.current_state = 'Cancer'
+                    self.age += time_to_cancer_detectable
+                else:
+                    if time_to_cancer_onset <= time_to_od: # If cancer onset before death
+                        if c.SCREENING_AGE <= self.age + time_to_od: #if screening happens during sojorun time
+                            self.current_state = 'Cancer'
+                            self.age = c.SCREENING_AGE
+                        else:
+                            self.current_state = 'Other Death'
+                            self.age += time_to_od                      
+                    else:
+                        self.current_state = 'Other Death'
+                        self.age += time_to_od
+                self.history[self.current_state] = self.age
+
+            if self.current_state == 'Cancer':
+                time_at_risk = min(10, c.END_AGE-int(self.age)-1)
+                time_to_cd = np.searchsorted(c.cancer_surv_arr[int(self.age) - c.START_AGE, :1+time_at_risk, 0], np.random.rand())
+                time_to_od = np.searchsorted(c.cancer_surv_arr[int(self.age) - c.START_AGE, :1+time_at_risk, 1], np.random.rand())
                 if time_to_od < time_to_cd:  # # If other death happens before cancer
                     self.current_state = 'Other Death'
                     self.age += time_to_od
@@ -96,18 +142,21 @@ class DiscreteEventSimulation:
         """
         self.reset()
         for patient in self.patients:
-            patient_history = patient.run(cancer_pdf)  # running patient
+            if c.MODE == 'intervention':
+                patient_history = patient.run_intervention(cancer_pdf)  # running patient
+            else:
+                patient_history = patient.run(cancer_pdf)  # running patient
             self.log.append(patient_history)  # recording to log
             try:
-                self.cancerIncArr[patient_history['Cancer'] - c.START_AGE] += 1  # Increment the incidence count for the corresponding age
+                self.cancerIncArr[int(patient_history['Cancer']) - c.START_AGE] += 1  # Increment the incidence count for the corresponding age
             except KeyError: 
                 pass
             try:
-                self.acMortArr[patient_history['Other Death'] - c.START_AGE] += 1  # Increment the mortlity count for the corresponding age
+                self.acMortArr[int(patient_history['Other Death']) - c.START_AGE] += 1  # Increment the mortlity count for the corresponding age
             except KeyError: 
                 pass
             try:
-                self.cancerMortArr[patient_history['Cancer Death'] - c.START_AGE] += 1  # Increment the cancer mortality count for the corresponding age
+                self.cancerMortArr[int(patient_history['Cancer Death']) - c.START_AGE] += 1  # Increment the cancer mortality count for the corresponding age
             except KeyError: 
                 pass
         num_alive = self.num_patients - self.acMortArr.cumsum() - self.cancerMortArr.cumsum()  # Adjusting denominator based on number alive
