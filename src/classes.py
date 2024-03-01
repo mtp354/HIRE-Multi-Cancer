@@ -42,13 +42,12 @@ class Patient:
                 condCDF = np.cumsum(c.ac_pdf[int(self.age):])  # Get the conditional PDF
                 time_to_od = np.searchsorted(condCDF/condCDF[-1], np.random.rand())
                 
-                time_to_cancer_onset = np.searchsorted(np.cumsum(cancer_pdf), np.random.rand())
+                time_to_cancer_detected = np.searchsorted(np.cumsum(cancer_pdf), np.random.rand())
                 sample_sojourn_time = np.random.normal(c.MEAN_CANCER_SOJORN_TIME, c.STD_DEV_SOJOURN_TIME)
-                time_to_cancer_detectable = time_to_cancer_onset + sample_sojourn_time
                 
-                if time_to_cancer_detectable <= time_to_od:  # If cancer happens before death
+                if time_to_cancer_detected <= time_to_od:  # If cancer happens before death
                     self.current_state = 'Cancer'
-                    self.age += time_to_cancer_detectable
+                    self.age += time_to_cancer_detected
                 else:
                     self.current_state = 'Other Death'
                     self.age += time_to_od
@@ -77,24 +76,20 @@ class Patient:
                 condCDF = np.cumsum(c.ac_pdf[int(self.age):])  # Get the conditional PDF
                 time_to_od = np.searchsorted(condCDF/condCDF[-1], np.random.rand())
                 
-                time_to_cancer_onset = np.searchsorted(np.cumsum(cancer_pdf), np.random.rand())
+                time_to_cancer_detected = np.searchsorted(np.cumsum(cancer_pdf), np.random.rand())
                 sample_sojourn_time = np.random.normal(c.MEAN_CANCER_SOJORN_TIME, c.STD_DEV_SOJOURN_TIME)
-                time_to_cancer_detectable = time_to_cancer_onset + sample_sojourn_time
+                time_to_cancer_onset = time_to_cancer_detected - sample_sojourn_time
                 
-                if time_to_cancer_detectable <= time_to_od:  # If cancer detected before death
-                    self.current_state = 'Cancer'
-                    self.age += time_to_cancer_detectable
-                else:
-                    if time_to_cancer_onset <= time_to_od: # If cancer onset before death
-                        if c.SCREENING_AGE <= self.age + time_to_od: #if screening happens during sojorun time
-                            self.current_state = 'Cancer'
-                            self.age = c.SCREENING_AGE
-                        else:
-                            self.current_state = 'Other Death'
-                            self.age += time_to_od                      
+                if time_to_cancer_detected <= time_to_od:  # If cancer detected before death
+                    if self.age+time_to_cancer_onset<=c.SCREENING_AGE and c.SCREENING_AGE<=self.age+time_to_cancer_detected:
+                        self.current_state = 'Cancer'
+                        self.age = c.SCREENING_AGE
                     else:
-                        self.current_state = 'Other Death'
-                        self.age += time_to_od
+                        self.current_state = 'Cancer'
+                        self.age += time_to_cancer_detected
+                else:
+                    self.current_state = 'Other Death'
+                    self.age += time_to_od
                 self.history[self.current_state] = self.age
 
             if self.current_state == 'Cancer':
