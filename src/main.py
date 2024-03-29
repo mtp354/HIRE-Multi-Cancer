@@ -21,10 +21,12 @@ if __name__ == '__main__':
         plt.show()
     elif c.MODE == 'calibrate':
         # Run calibration for simplest verion of the model
+        c.CANCER_PDF[:30] = 0
+        c.CANCER_PDF = savgol_filter(c.CANCER_PDF, 40, 4, mode='interp')  # smoothing
         best = simulated_annealing(model)
         # Save as numpy file, time_stamped
         if c.SAVE_RESULTS:
-            np.save(c.PATHS['calibration'] + f"{c.COHORT_SEX}_{c.COHORT_RACE}_{c.COHORT_YEAR}_{datetime.now():%Y-%m-%d_%H-%M-%S}.npy", best)
+            np.save(c.PATHS['calibration'] + f"{c.COHORT_SEX}_{c.COHORT_RACE}_{c.COHORT_YEAR}_{c.CANCER_SITES[0]}_{datetime.now():%Y-%m-%d_%H-%M-%S}.npy", best)
         plt.plot(np.arange(c.START_AGE, c.END_AGE), model.run(best).cancerIncArr[:-1], label='Model', color='blue')
         plt.plot(np.arange(c.min_age, c.max_age+1), c.CANCER_INC, label='SEER', color='darkred', alpha=0.5)
         plt.legend(loc='upper left')

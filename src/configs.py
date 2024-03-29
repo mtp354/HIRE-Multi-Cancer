@@ -32,8 +32,7 @@ START_TEMP = 10
 STEP_SIZE = 0.001
 VERBOSE = True
 MASK_SIZE = 0.1  # value between 0 and 1, the fraction of values to modify each step
-LOAD_LATEST = False  # If true, load the latest cancer_pdf from file as starting point
-
+LOAD_LATEST = True  # If true, load the latest cancer_pdf from file as starting point
 
 # Define input and output paths
 PATHS = {
@@ -86,6 +85,7 @@ if LOAD_LATEST:
     list_of_files = glob.glob(f'{PATHS["calibration"]}*')
     latest_file = max(list_of_files, key=os.path.getctime)
     CANCER_PDF = np.load(latest_file)
+
 
 # Loading in cancer survival data
 SURV = SURV[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival

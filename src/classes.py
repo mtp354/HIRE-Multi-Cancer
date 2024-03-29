@@ -146,7 +146,7 @@ def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE):
     """
     mask = np.random.random(candidate.shape) > mask_size # fraction of values to modify
     candidate[mask] += np.random.uniform(-step_size, step_size, mask.sum())
-    candidate = savgol_filter(candidate, 10, 3, mode='interp')  # smoothing
+    candidate = savgol_filter(candidate, 30, 4, mode='interp')  # smoothing
     return np.clip(candidate, 0.0, 1.0)
 
 def simulated_annealing(des, cancer_pdf=c.CANCER_PDF, cancer_inc=c.CANCER_INC, n_iterations=c.NUM_ITERATIONS, 
