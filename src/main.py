@@ -12,8 +12,8 @@ if __name__ == '__main__':
     if c.MODE == 'visualize':
         # Run simplest verion of the model
         print(objective(model.run(c.CANCER_PDF).cancerIncArr, c.CANCER_INC))
-        plt.plot(np.arange(c.START_AGE, c.END_AGE-1), model.run(c.CANCER_PDF).cancerIncArr[:-2], label='Model', color='blue')
-        plt.plot(np.arange(c.START_AGE, c.END_AGE-1), c.CANCER_INC[:-2], label='SEER', color='darkred', alpha=0.5)
+        plt.plot(np.arange(c.START_AGE, c.END_AGE), model.run(c.CANCER_PDF).cancerIncArr[:-1], label='Model', color='blue')
+        plt.plot(np.arange(c.min_age, c.max_age+1), c.CANCER_INC, label='SEER', color='darkred', alpha=0.5)
         plt.legend(loc='upper left')
         plt.xlabel('Age')
         plt.ylabel('Incidence (per 100k)')
@@ -24,9 +24,9 @@ if __name__ == '__main__':
         best = simulated_annealing(model)
         # Save as numpy file, time_stamped
         if c.SAVE_RESULTS:
-            np.save(c.OUTPUT_PATHS['calibration'] + f"{c.COHORT_SEX}_{c.COHORT_RACE}_{c.COHORT_YEAR}_{datetime.now():%Y-%m-%d_%H-%M-%S}.npy", best)
-        plt.plot(np.arange(c.START_AGE, c.END_AGE+1), model.run(c.CANCER_PDF).cancerIncArr[:], label='Model', color='blue')
-        plt.plot(np.arange(c.START_AGE, c.END_AGE+1), c.CANCER_INC, label='SEER', color='darkred', alpha=0.5)
+            np.save(c.PATHS['calibration'] + f"{c.COHORT_SEX}_{c.COHORT_RACE}_{c.COHORT_YEAR}_{datetime.now():%Y-%m-%d_%H-%M-%S}.npy", best)
+        plt.plot(np.arange(c.START_AGE, c.END_AGE), model.run(best).cancerIncArr[:-1], label='Model', color='blue')
+        plt.plot(np.arange(c.min_age, c.max_age+1), c.CANCER_INC, label='SEER', color='darkred', alpha=0.5)
         plt.legend(loc='upper left')
         plt.xlabel('Age')
         plt.ylabel('Incidence (per 100k)')

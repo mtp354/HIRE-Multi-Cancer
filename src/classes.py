@@ -40,8 +40,7 @@ class Patient:
         self.reset()
         while 'Death' not in self.current_state:
             if self.current_state == 'Healthy':
-                condCDF = np.cumsum(c.ac_pdf[self.age-c.START_AGE:])  # Get the conditional PDF
-                time_to_od = np.searchsorted(condCDF/condCDF[-1], np.random.rand())
+                time_to_od = np.searchsorted(c.ac_cdf[self.age,:], np.random.rand()) - self.age
                 time_to_cancer = np.searchsorted(np.cumsum(cancer_pdf), np.random.rand())
                 if time_to_cancer <= time_to_od:  # If cancer happens before death
                     self.current_state = 'Cancer'
@@ -50,7 +49,6 @@ class Patient:
                     self.current_state = 'Other Death'
                     self.age += time_to_od
                 self.history[self.current_state] = self.age
-
             if self.current_state == 'Cancer':
                 time_at_risk = min(10, c.END_AGE-self.age-1)
                 time_to_cd = np.searchsorted(c.cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 0], np.random.rand())
@@ -102,7 +100,7 @@ class DiscreteEventSimulation:
             except KeyError: 
                 pass
             try:
-                self.acMortArr[patient_history['Other Death'] - c.START_AGE] += 1  # Increment the mortlity count for the corresponding age
+                self.acMortArr[patient_history['Other Death'] - c.START_AGE] += 1  # Increment the mortality count for the corresponding age
             except KeyError: 
                 pass
             try:
@@ -125,18 +123,17 @@ class DiscreteEventSimulation:
 
 # Defining Simulated Annealing functions
 def objective(obs, exp=c.CANCER_INC):
-        """
-        Calculate the sum of the squared differences between the observed and expected values.
+    """
+    A function that calculates the mean squared error between observed and expected values.
 
-        Parameters:
-            obs (array): The array of observed values.
-            exp (array): The array of expected values.
+    Parameters:
+    obs (array-like): The observed values.
+    exp (array-like, optional): The expected values, default is c.CANCER_INC.
 
-        Returns:
-            float: The sum of the squared differences.
-        """
-        # return np.sum(np.square(obs[1975-c.COHORT_YEAR:2021-c.COHORT_YEAR] - exp))  # Only compares the years we have incidence data
-        return mean_squared_error(exp, obs)
+    Returns:
+    float: The mean squared error between the observed and expected values.
+    """
+    return mean_squared_error(obs[c.min_age:c.max_age+1], exp)
 
 def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE):
     """
