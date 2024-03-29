@@ -40,7 +40,7 @@ class Patient:
         self.reset()
         while 'Death' not in self.current_state:
             if self.current_state == 'Healthy':
-                condCDF = np.cumsum(c.ac_pdf[self.age:])  # Get the conditional PDF
+                condCDF = np.cumsum(c.ac_pdf[self.age-c.START_AGE:])  # Get the conditional PDF
                 time_to_od = np.searchsorted(condCDF/condCDF[-1], np.random.rand())
                 time_to_cancer = np.searchsorted(np.cumsum(cancer_pdf), np.random.rand())
                 if time_to_cancer <= time_to_od:  # If cancer happens before death
@@ -75,7 +75,6 @@ class Patient:
         self.age = c.START_AGE
         self.current_state = 'Healthy'
         self.history = {self.current_state:self.age}
-
 
 
 class DiscreteEventSimulation:
@@ -137,7 +136,7 @@ def objective(obs, exp=c.CANCER_INC):
             float: The sum of the squared differences.
         """
         # return np.sum(np.square(obs[1975-c.COHORT_YEAR:2021-c.COHORT_YEAR] - exp))  # Only compares the years we have incidence data
-        return mean_squared_error(exp, obs[1975-c.COHORT_YEAR:2021-c.COHORT_YEAR])
+        return mean_squared_error(exp, obs)
 
 def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE):
     """
