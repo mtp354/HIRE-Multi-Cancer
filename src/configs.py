@@ -42,12 +42,12 @@ LOAD_LATEST = False  # If true, load the latest cancer_pdf from file as starting
 
 # Define input and output paths
 PATHS = {
-    'incidence': '../data/cancer_incidence/',
-    'mortality': '../data/mortality/',
-    'survival': '../data/cancer_survival/',
-    'calibration': '../outputs/calibration/',
-    'plots_calibration': '../outputs/calibration/plots/',
-    'plots': '../outputs/plots/'
+    'incidence': './data/cancer_incidence/',
+    'mortality': './data/mortality/',
+    'survival': './data/cancer_survival/',
+    'calibration': './outputs/calibration/',
+    'plots_calibration': './outputs/calibration/plots/',
+    'plots': './outputs/plots/'
 }
 
 # Load input data
