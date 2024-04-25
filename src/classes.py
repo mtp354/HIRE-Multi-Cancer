@@ -3,6 +3,7 @@ import numpy as np
 import configs as c
 from sklearn.metrics import mean_squared_error
 from scipy.signal import savgol_filter
+from tqdm import tqdm
 
 
 class Patient:
@@ -146,7 +147,7 @@ def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE):
     """
     mask = np.random.random(candidate.shape) > mask_size # fraction of values to modify
     candidate[mask] += np.random.uniform(-step_size, step_size, mask.sum())
-    candidate = savgol_filter(candidate, 30, 4, mode='interp')  # smoothing
+    candidate = savgol_filter(candidate, 31, 4, mode='interp')  # smoothing
     return np.clip(candidate, 0.0, 1.0)
 
 def simulated_annealing(des, cancer_pdf=c.CANCER_PDF, cancer_inc=c.CANCER_INC, n_iterations=c.NUM_ITERATIONS, 
@@ -167,7 +168,7 @@ def simulated_annealing(des, cancer_pdf=c.CANCER_PDF, cancer_inc=c.CANCER_INC, n
     best = np.copy(cancer_pdf)
     best_eval = objective(des.run(best).cancerIncArr, cancer_inc)  # evaluate the initial point
     curr, curr_eval = best, best_eval  # current working solution
-    for i in range(n_iterations):  # running algorithm
+    for i in tqdm(range(n_iterations)):  # running algorithm
         candidate = step(np.copy(curr), step_size, mask_size)
         candidate_eval = objective(des.run(candidate).cancerIncArr, cancer_inc)
         t = start_temp /(1+np.log(i+1)) # calculate temperature for current epoch

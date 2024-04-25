@@ -20,11 +20,17 @@ END_AGE = 100
 COHORT_SEX = 'Female'  # Female/Male
 COHORT_RACE = 'White'  # Black/White
 NUM_PATIENTS = 100_000
-CANCER_SITES = ['Breast']
+CANCER_SITES = ['Ovarian']
 # Full list:
 # MP 'Bladder' 'Breast' 'Cervical' 'Colorectal' 'Esophageal' 
 # JP 'Gastric' 'Lung' 'Prostate' 'Uterine'
 # FL 'Pancreatic' 'Ovarian' 'Kidney' 'Brain' 'Liver' 'Gallbladder'
+
+# Raise exceptions for male/ovarian, male/uterine, male/cervical, female/prostrate
+if COHORT_SEX == 'Male' and ('Ovarian' in CANCER_SITES or 'Uterine' in CANCER_SITES or 'Cervical' in CANCER_SITES):
+    raise Exception("Cancer site and cohort sex combination is not valid in configs.py")
+elif COHORT_SEX == 'Female' and 'Prostate' in CANCER_SITES:
+    raise Exception("Cancer site and cohort sex combination is not valid in configs.py")
 
 # Define simulated annealing parameters
 NUM_ITERATIONS = 1_000
@@ -32,7 +38,7 @@ START_TEMP = 10
 STEP_SIZE = 0.001
 VERBOSE = True
 MASK_SIZE = 0.1  # value between 0 and 1, the fraction of values to modify each step
-LOAD_LATEST = True  # If true, load the latest cancer_pdf from file as starting point
+LOAD_LATEST = False  # If true, load the latest cancer_pdf from file as starting point
 
 # Define input and output paths
 PATHS = {
@@ -40,6 +46,7 @@ PATHS = {
     'mortality': './data/mortality/',
     'survival': './data/cancer_survival/',
     'calibration': './outputs/calibration/',
+    'plots_calibration': './outputs/calibration/plots/',
     'plots': './outputs/plots/'
 }
 
@@ -85,7 +92,6 @@ if LOAD_LATEST:
     list_of_files = glob.glob(f'{PATHS["calibration"]}*')
     latest_file = max(list_of_files, key=os.path.getctime)
     CANCER_PDF = np.load(latest_file)
-
 
 # Loading in cancer survival data
 SURV = SURV[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
