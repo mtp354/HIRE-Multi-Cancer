@@ -23,8 +23,6 @@ if __name__ == '__main__':
         print(f"RUNNING CALIBRATION: COHORT = {c.COHORT_YEAR}, SEX = {c.COHORT_SEX}, RACE = {c.COHORT_RACE}")
         print(f"CANCERS = {c.CANCER_SITES}")
         # Run calibration for simplest verion of the model
-        # c.CANCER_PDF[:30] = 0
-        # c.CANCER_PDF = savgol_filter(c.CANCER_PDF, 40, 4, mode='interp')  # smoothing
         best = simulated_annealing(model)
         # Save as numpy file, time_stamped
         if c.SAVE_RESULTS:

@@ -20,7 +20,7 @@ END_AGE = 100
 COHORT_SEX = 'Female'  # Female/Male
 COHORT_RACE = 'White'  # Black/White
 NUM_PATIENTS = 100_000
-CANCER_SITES = ['Ovarian']
+CANCER_SITES = ['Colorectal']
 # Full list:
 # MP 'Bladder' 'Breast' 'Cervical' 'Colorectal' 'Esophageal' 
 # JP 'Gastric' 'Lung' 'Prostate' 'Uterine'
@@ -63,6 +63,12 @@ MORT = MORT.groupby(['Cohort','Age','Sex','Race']).agg({'Rate':'sum'}).reset_ind
 # Load in Survival data
 SURV = pd.read_csv(f'{PATHS["survival"]}Survival.csv')  # This is the 10 year survival by cause
 SURV = SURV[SURV['Site'].isin(CANCER_SITES)]  # keeping the cancers of interest
+
+# Load in sojorn times
+sojourn = pd.read_csv('./data/Sojourn Times/Sojourn Estimates.csv')
+sojourn = sojourn[sojourn['Site'].isin(CANCER_SITES)]
+print(sojourn)
+
 
 # Selecting Cohort
 CANCER_INC.query('Sex == @COHORT_SEX & Race == @COHORT_RACE & Cohort == @COHORT_YEAR', inplace=True)
