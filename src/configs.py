@@ -42,26 +42,25 @@ LOAD_LATEST = True  # If true, load the latest cancer_pdf from file as starting 
 
 # Define input and output paths
 PATHS = {
-    'incidence': '../data/cancer_incidence/',
-    'mortality': '../data/mortality/',
-    'survival': '../data/cancer_survival/',
-    'calibration': '../outputs/calibration/',
-    'plots_calibration': '../outputs/calibration/plots/',
-    'sojourn_time': '../data/Sojourn Times/',
-    'plots': '../outputs/plots/'
+    'incidence': './data/cancer_incidence/',
+    'mortality': './data/mortality/',
+    'survival': './data/cancer_survival/',
+    'calibration': './outputs/calibration/',
+    'plots_calibration': './outputs/calibration/plots/',
+    'sojourn_time': './data/Sojourn Times/',
+    'plots': './outputs/plots/'
 }
 
 # Load input data
 CANCER_INC = pd.read_csv(f'{PATHS["incidence"]}Incidence.csv')
 CANCER_INC = CANCER_INC[CANCER_INC['Site'].isin(CANCER_SITES)]  # keeping the cancers of interest
 
-
 # Load in mortality data
 MORT = pd.read_csv(f'{PATHS["mortality"]}Mortality.csv')
 MORT = MORT[~MORT['Site'].isin(CANCER_SITES)]  # Removing the cancers of interest
 MORT = MORT.groupby(['Cohort','Age','Sex','Race']).agg({'Rate':'sum'}).reset_index()  # Summing over the remaining sites
 
-# Load in Survival data
+# Load in Survival data # TODO: no male breast survival data
 SURV = pd.read_csv(f'{PATHS["survival"]}Survival.csv')  # This is the 10 year survival by cause
 SURV = SURV[SURV['Site'].isin(CANCER_SITES)]  # keeping the cancers of interest
 
