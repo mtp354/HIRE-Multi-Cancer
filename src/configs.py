@@ -20,7 +20,7 @@ END_AGE = 100
 COHORT_SEX = 'Female'  # Female/Male
 COHORT_RACE = 'White'  # Black/White
 NUM_PATIENTS = 100_000
-CANCER_SITES = ['Colorectal']
+CANCER_SITES = ['Breast']
 # Full list:
 # MP 'Bladder' 'Breast' 'Cervical' 'Colorectal' 'Esophageal' 
 # JP 'Gastric' 'Lung' 'Prostate' 'Uterine'
@@ -38,16 +38,17 @@ START_TEMP = 10
 STEP_SIZE = 0.001
 VERBOSE = True
 MASK_SIZE = 0.1  # value between 0 and 1, the fraction of values to modify each step
-LOAD_LATEST = False  # If true, load the latest cancer_pdf from file as starting point
+LOAD_LATEST = True  # If true, load the latest cancer_pdf from file as starting point
 
 # Define input and output paths
 PATHS = {
-    'incidence': './data/cancer_incidence/',
-    'mortality': './data/mortality/',
-    'survival': './data/cancer_survival/',
-    'calibration': './outputs/calibration/',
-    'plots_calibration': './outputs/calibration/plots/',
-    'plots': './outputs/plots/'
+    'incidence': '../data/cancer_incidence/',
+    'mortality': '../data/mortality/',
+    'survival': '../data/cancer_survival/',
+    'calibration': '../outputs/calibration/',
+    'plots_calibration': '../outputs/calibration/plots/',
+    'sojourn_time': '../data/Sojourn Times/',
+    'plots': '../outputs/plots/'
 }
 
 # Load input data
@@ -65,10 +66,8 @@ SURV = pd.read_csv(f'{PATHS["survival"]}Survival.csv')  # This is the 10 year su
 SURV = SURV[SURV['Site'].isin(CANCER_SITES)]  # keeping the cancers of interest
 
 # Load in sojorn times
-sojourn = pd.read_csv('./data/Sojourn Times/Sojourn Estimates.csv')
+sojourn = pd.read_csv(PATHS['sojourn_time'] + 'Sojourn Estimates.csv')
 sojourn = sojourn[sojourn['Site'].isin(CANCER_SITES)]
-print(sojourn)
-
 
 # Selecting Cohort
 CANCER_INC.query('Sex == @COHORT_SEX & Race == @COHORT_RACE & Cohort == @COHORT_YEAR', inplace=True)
@@ -95,8 +94,35 @@ max_age = min(2018 - COHORT_YEAR, 84)
 CANCER_PDF = 0.002 * np.ones(END_AGE - START_AGE + 1)  # starting from 0 incidence and using bias optimization
 CANCER_PDF[:35] = 0.0
 if LOAD_LATEST:
-    list_of_files = glob.glob(f'{PATHS["calibration"]}*')
-    latest_file = max(list_of_files, key=os.path.getctime)
+    # Check if there is a previous numpy file matching the same sex and race and cancer site
+    list_of_files = glob.glob(f'{PATHS["calibration"]}*{COHORT_SEX}_{COHORT_RACE}_*{CANCER_SITES[0]}_*.npy')
+    if len(list_of_files) == 0: # Check if there is a previous numpy file matching the same sex and cancer site
+        list_of_files = glob.glob(f'{PATHS["calibration"]}*{COHORT_SEX}_*{CANCER_SITES[0]}_*.npy')
+    if len(list_of_files) == 0: # Check if there is a previous numpy file matching the same race and cancer site
+        list_of_files = glob.glob(f'{PATHS["calibration"]}*{COHORT_RACE}_*{CANCER_SITES[0]}_*.npy')
+    if len(list_of_files) == 0: # Check if there is a previous numpy file matching the same cancer site
+        list_of_files = glob.glob(f'{PATHS["calibration"]}*{CANCER_SITES[0]}_*.npy')
+    if len(list_of_files) == 0:
+        raise ValueError("No suitable LOAD_LATEST file, set LOAD_LATEST to FALSE")
+
+    # Look at all the unique cohort years in the file names
+    all_cohort_years = []
+    for file in list_of_files:
+        year = file.split('_')[2] # grabs the cohort year
+        if int(year) not in all_cohort_years:
+            all_cohort_years.append(int(year))
+    # Sort ascending years
+    all_cohort_years.sort()
+    # Get the max calibrated cohort year that is just below or equal to the COHORT_YEAR
+    for year in all_cohort_years:
+        if year <= COHORT_YEAR:
+            max_year = year
+    final_list = []
+    for file in list_of_files:
+        if f'_{max_year}_' in file:
+            final_list.append(file)
+    # Read the latest file
+    latest_file = max(final_list, key=os.path.getctime)
     CANCER_PDF = np.load(latest_file)
 
 # Loading in cancer survival data
