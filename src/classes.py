@@ -37,11 +37,11 @@ class Patient:
         """
         return f"Patient:{self.pid}, history:{self.history})"
 
-    def run(self, cancer_pdf):
+    def run(self, cancer_pdf, ac_cdf, cancer_surv_arr):
         self.reset()
         while 'Death' not in self.current_state:
             if self.current_state == 'Healthy':
-                time_to_od = np.searchsorted(c.ac_cdf[self.age,:], np.random.rand()) - self.age
+                time_to_od = np.searchsorted(ac_cdf[self.age,:], np.random.rand()) - self.age
                 time_to_cancer = np.searchsorted(np.cumsum(cancer_pdf), np.random.rand())
                 if time_to_cancer <= time_to_od:  # If cancer happens before death
                     self.current_state = 'Cancer'
@@ -52,8 +52,8 @@ class Patient:
                 self.history[self.current_state] = self.age
             if self.current_state == 'Cancer':
                 time_at_risk = min(10, c.END_AGE-self.age-1)
-                time_to_cd = np.searchsorted(c.cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 0], np.random.rand())
-                time_to_od = np.searchsorted(c.cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 1], np.random.rand())
+                time_to_cd = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 0], np.random.rand())
+                time_to_od = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 1], np.random.rand())
                 if time_to_od < time_to_cd:  # # If other death happens before cancer
                     self.current_state = 'Other Death'
                     self.age += time_to_od
@@ -77,7 +77,7 @@ class Patient:
 
 
 class DiscreteEventSimulation:
-    def __init__(self, num_patients=c.NUM_PATIENTS, starting_age=c.START_AGE):
+    def __init__(self, ac_cdf, cancer_surv_arr, num_patients=c.NUM_PATIENTS, starting_age=c.START_AGE):
         """
         Initializes the object with the given `cancer_cdf`.
         """
@@ -87,6 +87,8 @@ class DiscreteEventSimulation:
         self.cancerIncArr = np.zeros((c.END_AGE - c.START_AGE + 1))  # Initialize incidence array
         self.acMortArr = np.zeros((c.END_AGE - c.START_AGE + 1))  # Initialize mortality array
         self.cancerMortArr = np.zeros((c.END_AGE - c.START_AGE + 1))  # Initialize cancer mortality array
+        self.ac_cdf = ac_cdf
+        self.cancer_surv_arr = cancer_surv_arr
     
     def run(self, cancer_pdf):
         """
@@ -94,7 +96,7 @@ class DiscreteEventSimulation:
         """
         self.reset()
         for patient in self.patients:
-            patient_history = patient.run(cancer_pdf)  # running patient
+            patient_history = patient.run(cancer_pdf, self.ac_cdf, self.cancer_surv_arr)  # running patient
             self.log.append(patient_history)  # recording to log
             try:
                 self.cancerIncArr[patient_history['Cancer'] - c.START_AGE] += 1  # Increment the incidence count for the corresponding age
@@ -123,7 +125,7 @@ class DiscreteEventSimulation:
 
 
 # Defining Simulated Annealing functions
-def objective(obs, exp=c.CANCER_INC):
+def objective(obs, min_age, max_age, exp):
     """
     A function that calculates the mean squared error between observed and expected values.
 
@@ -134,7 +136,7 @@ def objective(obs, exp=c.CANCER_INC):
     Returns:
     float: The mean squared error between the observed and expected values.
     """
-    return mean_squared_error(obs[c.min_age:c.max_age+1], exp)
+    return mean_squared_error(obs[min_age:max_age+1], exp)
 
 def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE):
     """
@@ -150,7 +152,7 @@ def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE):
     candidate = savgol_filter(candidate, 31, 4, mode='interp')  # smoothing
     return np.clip(candidate, 0.0, 1.0)
 
-def simulated_annealing(des, cancer_pdf=c.CANCER_PDF, cancer_inc=c.CANCER_INC, n_iterations=c.NUM_ITERATIONS, 
+def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterations=c.NUM_ITERATIONS, 
                         start_temp=c.START_TEMP, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE, verbose=c.VERBOSE):
     """
     Simulated annealing algorithm to optimize a given cancer probability density function.
@@ -166,11 +168,11 @@ def simulated_annealing(des, cancer_pdf=c.CANCER_PDF, cancer_inc=c.CANCER_INC, n
         numpy array: The optimized cancer probability density function.
     """
     best = np.copy(cancer_pdf)
-    best_eval = objective(des.run(best).cancerIncArr, cancer_inc)  # evaluate the initial point
+    best_eval = objective(des.run(best).cancerIncArr, min_age, max_age, cancer_inc)  # evaluate the initial point
     curr, curr_eval = best, best_eval  # current working solution
     for i in tqdm(range(n_iterations)):  # running algorithm
         candidate = step(np.copy(curr), step_size, mask_size)
-        candidate_eval = objective(des.run(candidate).cancerIncArr, cancer_inc)
+        candidate_eval = objective(des.run(candidate).cancerIncArr, min_age, max_age, cancer_inc)
         t = start_temp /(1+np.log(i+1)) # calculate temperature for current epoch
         if candidate_eval < best_eval:
             best, best_eval = candidate, candidate_eval 
