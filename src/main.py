@@ -21,9 +21,9 @@ if __name__ == '__main__':
         plt.show()
     elif c.MODE == 'calibrate':
         if c.MULTI_COHORT_CALIBRATION:
+            print(f"RUNNING MULTI-COHORT CALIBRATION: FIRST COHORT = {c.FIRST_COHORT}, LAST COHORT = {c.LAST_COHORT}, SEX = {c.COHORT_SEX}, RACE = {c.COHORT_RACE}")
+            print(f"CANCERS = {c.CANCER_SITES}")
             for cohort in tqdm(range(c.FIRST_COHORT, c.LAST_COHORT + 1)):
-                print(f"RUNNING MULTI-COHORT CALIBRATION: FIRST COHORT = {c.FIRST_COHORT}, LAST COHORT = {c.LAST_COHORT}, SEX = {c.COHORT_SEX}, RACE = {c.COHORT_RACE}")
-                print(f"CANCERS = {c.CANCER_SITES}")
                 # Initialize cohort-specific parameters
                 ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(cohort, c.CANCER_INC, c.MORT, c.SURV, c.sojourn)
                 model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr)
@@ -58,7 +58,7 @@ if __name__ == '__main__':
             plt.ylabel('Incidence (per 100k)')
             plt.title(f"Cancer Incidence by Age for Birthyear={c.COHORT_YEAR}, Sex={c.COHORT_SEX}, Race={c.COHORT_RACE}, Site={c.CANCER_SITES[0]}")
             plt.savefig(c.PATHS['plots_calibration'] + f"{c.COHORT_SEX}_{c.COHORT_RACE}_{c.COHORT_YEAR}_{c.CANCER_SITES[0]}.png", bbox_inches='tight')
-
+            plt.clf()
 
     end = timer()
     print(f'total time: {timedelta(seconds=end-start)}')
