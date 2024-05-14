@@ -25,7 +25,7 @@ if __name__ == '__main__':
             print(f"CANCERS = {c.CANCER_SITES}")
             for cohort in tqdm(range(c.FIRST_COHORT, c.LAST_COHORT + 1)):
                 # Initialize cohort-specific parameters
-                ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(cohort, c.COHORT_SEX, c.COHORT_RACE, c.CANCER_INC, c.MORT, c.SURV, c.sojourn)
+                ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(cohort, c.COHORT_SEX, c.COHORT_RACE)
                 model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr)
                 # Run calibration for simplest verion of the model
                 best = simulated_annealing(model, CANCER_PDF, CANCER_INC, min_age, max_age)
@@ -44,7 +44,7 @@ if __name__ == '__main__':
             print(f"RUNNING CALIBRATION: COHORT = {c.COHORT_YEAR}, SEX = {c.COHORT_SEX}, RACE = {c.COHORT_RACE}")
             print(f"CANCERS = {c.CANCER_SITES}")
             # Initialize cohort-specific parameters
-            ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(c.COHORT_YEAR, c.COHORT_SEX, c.COHORT_RACE, c.CANCER_INC, c.MORT, c.SURV, c.sojourn)
+            ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(c.COHORT_YEAR, c.COHORT_SEX, c.COHORT_RACE)
             model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr)
             # Run calibration for simplest verion of the model
             best = simulated_annealing(model, CANCER_PDF, CANCER_INC, min_age, max_age)
