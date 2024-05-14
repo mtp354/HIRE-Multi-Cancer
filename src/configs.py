@@ -17,10 +17,10 @@ SAVE_RESULTS = True  # whether to save results to file
 COHORT_YEAR = 1940  # birth year of the cohort
 START_AGE = 0
 END_AGE = 100
-COHORT_SEX = 'Female'  # Female/Male
+COHORT_SEX = 'Male'  # Female/Male
 COHORT_RACE = 'White'  # Black/White
 NUM_PATIENTS = 100
-CANCER_SITES = ['Breast']
+CANCER_SITES = ['Pancreas']
 # Full list:
 # MP 'Bladder' 'Breast' 'Cervical' 'Colorectal' 'Esophageal' 
 # JP 'Gastric' 'Lung' 'Prostate' 'Uterine'
@@ -33,7 +33,7 @@ elif COHORT_SEX == 'Female' and 'Prostate' in CANCER_SITES:
     raise Exception("Cancer site and cohort sex combination is not valid in configs.py")
 
 # Define simulated annealing parameters
-NUM_ITERATIONS = 1_000
+NUM_ITERATIONS = 100
 START_TEMP = 10
 STEP_SIZE = 0.001
 VERBOSE = True
@@ -73,13 +73,13 @@ sojourn = pd.read_csv(PATHS['sojourn_time'] + 'Sojourn Estimates.csv')
 sojourn = sojourn[sojourn['Site'].isin(CANCER_SITES)]
 
 # Selecting Cohort
-def select_cohort(birthyear, CANCER_INC, MORT, SURV, sojourn):
-    CANCER_INC.query('Sex == @COHORT_SEX & Race == @COHORT_RACE & Cohort == @COHORT_YEAR', inplace=True)
-    MORT.query('Sex == @COHORT_SEX & Race == @COHORT_RACE & Cohort == @COHORT_YEAR', inplace=True)
-    SURV.query('Sex == @COHORT_SEX & Race == @COHORT_RACE', inplace=True)
+def select_cohort(birthyear, sex, race, CANCER_INC, MORT, SURV, sojourn):
+    NEW_CANCER_INC = CANCER_INC.query('Sex == @sex & Race == @race & Cohort == @birthyear', inplace=True)
+    NEW_MORT = MORT.query('Sex == @sex & Race == @race & Cohort == @birthyear', inplace=True)
+    NEW_SURV = SURV.query('Sex == @sex & Race == @race', inplace=True)
 
     # Create the cdf all-cause mortality
-    ac_cdf = np.cumsum(MORT['Rate'].to_numpy())/100000
+    ac_cdf = np.cumsum(NEW_MORT['Rate'].to_numpy())/100000
     # Creating the conditional CDF for all-cause mortality by age (doing this here to save runtime)
     ac_cdf = np.tile(ac_cdf, (END_AGE - START_AGE + 1, 1))  # (current age, future age)
     for i in range(END_AGE - START_AGE + 1):
@@ -88,7 +88,7 @@ def select_cohort(birthyear, CANCER_INC, MORT, SURV, sojourn):
     ac_cdf = np.clip(ac_cdf, 0.0, 1.0)
 
     # Load all cancer incidence target data
-    CANCER_INC = CANCER_INC['Rate'].to_numpy()
+    NEW_CANCER_INC = NEW_CANCER_INC['Rate'].to_numpy()
     # For plotting and objective, we only compare years we have data
     min_age = max(1975 - COHORT_YEAR, 0)
     max_age = min(2018 - COHORT_YEAR, 84)
@@ -129,15 +129,15 @@ def select_cohort(birthyear, CANCER_INC, MORT, SURV, sojourn):
         CANCER_PDF = np.load(latest_file)
 
     # Loading in cancer survival data
-    SURV = SURV[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
-    SURV = 1 - SURV**(1/10)  # Converting to annual probability of death (assuming constant rate)
+    NEW_SURV = NEW_SURV[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
+    NEW_SURV = 1 - NEW_SURV**(1/10)  # Converting to annual probability of death (assuming constant rate)
 
     # Converting into probability of death at each follow up year
     cancer_surv_arr = np.zeros((END_AGE - START_AGE + 1, 10, 2))
 
     for i in range(10):
-        cancer_surv_arr[:,i,0] = 1-(1-SURV[:,0])**(i+1)  # Cancer death
-        cancer_surv_arr[:,i,1] = 1-(1-SURV[:,1])**(i+1)  # Other death
+        cancer_surv_arr[:,i,0] = 1-(1-NEW_SURV[:,0])**(i+1)  # Cancer death
+        cancer_surv_arr[:,i,1] = 1-(1-NEW_SURV[:,1])**(i+1)  # Other death
         # This is now an an array of shape (100, 10, 2), that represents the cdf of cancer death and other death at each follow up year
 
     return ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC
