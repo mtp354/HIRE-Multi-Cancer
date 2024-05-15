@@ -39,7 +39,7 @@ if __name__ == '__main__':
                 plt.ylabel('Incidence (per 100k)')
                 plt.title(f"Cancer Incidence by Age for Birthyear={cohort}, Sex={c.COHORT_SEX}, Race={c.COHORT_RACE}, Site={c.CANCER_SITES[0]}")
                 plt.savefig(c.PATHS['plots_calibration'] + f"{c.COHORT_SEX}_{c.COHORT_RACE}_{cohort}_{c.CANCER_SITES[0]}.png", bbox_inches='tight')
-
+                plt.clf()
         else:
             print(f"RUNNING CALIBRATION: COHORT = {c.COHORT_YEAR}, SEX = {c.COHORT_SEX}, RACE = {c.COHORT_RACE}")
             print(f"CANCERS = {c.CANCER_SITES}")
