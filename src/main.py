@@ -11,6 +11,9 @@ if __name__ == '__main__':
     start = timer()
     if c.MODE == 'visualize':
         # Run simplest verion of the model
+        # Initialize cohort-specific parameters
+        ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(cohort, c.COHORT_SEX, c.COHORT_RACE)
+        model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr)
         print(objective(model.run(c.CANCER_PDF).cancerIncArr, c.CANCER_INC))
         plt.plot(np.arange(c.START_AGE, c.END_AGE), model.run(c.CANCER_PDF).cancerIncArr[:-1], label='Model', color='blue')
         plt.plot(np.arange(c.min_age, c.max_age+1), c.CANCER_INC, label='SEER', color='darkred', alpha=0.5)

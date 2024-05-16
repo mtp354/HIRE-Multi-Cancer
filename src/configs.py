@@ -19,7 +19,7 @@ START_AGE = 0
 END_AGE = 100
 COHORT_SEX = 'Male'  # Female/Male
 COHORT_RACE = 'White'  # Black/White
-NUM_PATIENTS = 100
+NUM_PATIENTS = 100_000
 CANCER_SITES = ['Pancreas']
 # Full list:
 # MP 'Bladder' 'Breast' 'Cervical' 'Colorectal' 'Esophageal' 
@@ -33,7 +33,7 @@ elif COHORT_SEX == 'Female' and 'Prostate' in CANCER_SITES:
     raise Exception("Cancer site and cohort sex combination is not valid in configs.py")
 
 # Define simulated annealing parameters
-NUM_ITERATIONS = 10
+NUM_ITERATIONS = 1_000
 START_TEMP = 10
 STEP_SIZE = 0.001
 VERBOSE = True
@@ -46,13 +46,13 @@ if MULTI_COHORT_CALIBRATION:
 
 # Define input and output paths
 PATHS = {
-    'incidence': '../data/cancer_incidence/',
-    'mortality': '../data/mortality/',
-    'survival': '../data/cancer_survival/',
-    'calibration': '../outputs/calibration/',
-    'plots_calibration': '../outputs/calibration/plots/',
-    'sojourn_time': '../data/Sojourn Times/',
-    'plots': '../outputs/plots/'
+    'incidence': './data/cancer_incidence/',
+    'mortality': './data/mortality/',
+    'survival': './data/cancer_survival/',
+    'calibration': './outputs/calibration/',
+    'plots_calibration': './outputs/calibration/plots/',
+    'sojourn_time': './data/Sojourn Times/',
+    'plots': './outputs/plots/'
 }
 
 
