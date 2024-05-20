@@ -40,22 +40,23 @@ VERBOSE = True
 MASK_SIZE = 0.1  # value between 0 and 1, the fraction of values to modify each step
 LOAD_LATEST = False  # If true, load the latest cancer_pdf from file as starting point
 MULTI_COHORT_CALIBRATION = False
-if MULTI_COHORT_CALIBRATION:
+# You can either do multi-calibration by increasing (FIRST_COHORT < LAST_COHORT)
+# or decreasing cohorts (FIRST_COHORT > LAST_COHORT)
+# But you must be multi-calibration in ascending order first before doing descending order
+if MULTI_COHORT_CALIBRATION: 
     FIRST_COHORT = 1941
     LAST_COHORT = 1945
 
 # Define input and output paths
 PATHS = {
-    'incidence': './data/cancer_incidence/',
-    'mortality': './data/mortality/',
-    'survival': './data/cancer_survival/',
-    'calibration': './outputs/calibration/',
-    'plots_calibration': './outputs/calibration/plots/',
-    'sojourn_time': './data/Sojourn Times/',
-    'plots': './outputs/plots/'
+    'incidence': '../data/cancer_incidence/',
+    'mortality': '../data/mortality/',
+    'survival': '../data/cancer_survival/',
+    'calibration': '../outputs/calibration/',
+    'plots_calibration': '../outputs/calibration/plots/',
+    'sojourn_time': '../data/Sojourn Times/',
+    'plots': '../outputs/plots/'
 }
-
-
 
 # Selecting Cohort
 def select_cohort(birthyear, sex, race):
@@ -116,16 +117,24 @@ def select_cohort(birthyear, sex, race):
             year = file.split('_')[2] # grabs the cohort year
             if int(year) not in all_cohort_years:
                 all_cohort_years.append(int(year))
-        # Sort ascending years
-        all_cohort_years.sort()
-        # Get the max calibrated cohort year that is just below or equal to the COHORT_YEAR
-        for year in all_cohort_years:
-            if year <= birthyear:
-                max_year = year
-        final_list = []
-        for file in list_of_files:
-            if f'_{max_year}_' in file:
-                final_list.append(file)
+        if FIRST_COHORT < LAST_COHORT: # ascending birth year calibration
+            # Sort ascending years
+            all_cohort_years.sort()
+            # Get the max calibrated cohort year that is just below or equal to the COHORT_YEAR
+            for year in all_cohort_years:
+                if year <= birthyear:
+                    max_year = year
+            final_list = []
+            for file in list_of_files:
+                if f'_{max_year}_' in file:
+                    final_list.append(file)
+        else: # descending birth year calibration
+            # Get the min calibrated cohort year that is just above the COHORT_YEAR
+            min_year = birthyear + 1
+            final_list = []
+            for file in list_of_files:
+                if f'_{min_year}_' in file:
+                    final_list.append(file)
         # Read the latest file
         latest_file = max(final_list, key=os.path.getctime)
         CANCER_PDF = np.load(latest_file)
