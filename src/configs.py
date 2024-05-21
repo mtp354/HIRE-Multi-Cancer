@@ -7,7 +7,7 @@ import os
 # Aesthetic Preferences
 np.set_printoptions(precision=5, suppress=True)
 
-MODE = 'calibrate'
+MODE = 'visualize'
 # Options:
 # - calibrate: run simulated annealing for cancer incidence
 # - visualize: plot incidence and mortality
@@ -19,7 +19,7 @@ START_AGE = 0
 END_AGE = 100
 COHORT_SEX = 'Male'  # Female/Male
 COHORT_RACE = 'White'  # Black/White
-NUM_PATIENTS = 100_000
+NUM_PATIENTS = 10 #100_000
 CANCER_SITES = ['Pancreas']
 # Full list:
 # MP 'Bladder' 'Breast' 'Cervical' 'Colorectal' 'Esophageal' 
@@ -33,12 +33,12 @@ elif COHORT_SEX == 'Female' and 'Prostate' in CANCER_SITES:
     raise Exception("Cancer site and cohort sex combination is not valid in configs.py")
 
 # Define simulated annealing parameters
-NUM_ITERATIONS = 1_000
+NUM_ITERATIONS = 5 #1_000
 START_TEMP = 10
 STEP_SIZE = 0.001
 VERBOSE = True
 MASK_SIZE = 0.1  # value between 0 and 1, the fraction of values to modify each step
-LOAD_LATEST = False  # If true, load the latest cancer_pdf from file as starting point
+LOAD_LATEST = False  # If true, load the latest cancer_pdf from file as starting point (only works for same or previous cohort year)
 MULTI_COHORT_CALIBRATION = False
 # You can either do multi-calibration by increasing (FIRST_COHORT < LAST_COHORT)
 # or decreasing cohorts (FIRST_COHORT > LAST_COHORT)
@@ -46,6 +46,10 @@ MULTI_COHORT_CALIBRATION = False
 if MULTI_COHORT_CALIBRATION: 
     FIRST_COHORT = 1941
     LAST_COHORT = 1945
+
+# Multiprocessing settings
+PROCESSES = 24
+BLOCK_SIZE = 100
 
 # Define input and output paths
 PATHS = {
@@ -117,7 +121,7 @@ def select_cohort(birthyear, sex, race):
             year = file.split('_')[2] # grabs the cohort year
             if int(year) not in all_cohort_years:
                 all_cohort_years.append(int(year))
-        if FIRST_COHORT < LAST_COHORT: # ascending birth year calibration
+        if MULTI_COHORT_CALIBRATION == False or FIRST_COHORT < LAST_COHORT: # ascending birth year calibration
             # Sort ascending years
             all_cohort_years.sort()
             # Get the max calibrated cohort year that is just below or equal to the COHORT_YEAR
