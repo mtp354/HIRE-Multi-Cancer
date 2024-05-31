@@ -18,9 +18,9 @@ COHORT_YEAR = 1940  # birth year of the cohort
 START_AGE = 0
 END_AGE = 100
 COHORT_SEX = 'Male'  # Female/Male
-COHORT_RACE = 'White'  # Black/White
+COHORT_RACE = 'Black'  # Black/White
 NUM_PATIENTS = 100_000
-CANCER_SITES = ['Pancreas']
+CANCER_SITES = ['Lung']
 # Full list:
 # MP 'Bladder' 'Breast' 'Cervical' 'Colorectal' 'Esophageal' 
 # JP 'Gastric' 'Lung' 'Prostate' 'Uterine'
@@ -39,20 +39,20 @@ STEP_SIZE = 0.001
 VERBOSE = True
 MASK_SIZE = 0.1  # value between 0 and 1, the fraction of values to modify each step
 LOAD_LATEST = False  # If true, load the latest cancer_pdf from file as starting point
-MULTI_COHORT_CALIBRATION = False
+MULTI_COHORT_CALIBRATION = True
 if MULTI_COHORT_CALIBRATION:
-    FIRST_COHORT = 1941
-    LAST_COHORT = 1945
+    FIRST_COHORT = 1930
+    LAST_COHORT = 1960
 
 # Define input and output paths
 PATHS = {
-    'incidence': './data/cancer_incidence/',
-    'mortality': './data/mortality/',
-    'survival': './data/cancer_survival/',
-    'calibration': './outputs/calibration/',
-    'plots_calibration': './outputs/calibration/plots/',
-    'sojourn_time': './data/Sojourn Times/',
-    'plots': './outputs/plots/'
+    'incidence': '../data/cancer_incidence/',
+    'mortality': '../data/mortality/',
+    'survival': '../data/cancer_survival/',
+    'calibration': '../outputs/calibration/',
+    'plots_calibration': '../outputs/calibration/plots/',
+    'sojourn_time': '../data/Sojourn Times/',
+    'plots': '../outputs/plots/'
 }
 
 
