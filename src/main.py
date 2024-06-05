@@ -7,6 +7,8 @@ import configs as c
 from classes import *
 from tqdm import tqdm
 import multiprocessing as mp
+import random 
+random.seed(42)
 
 def run_calibration(cohort):
     # Initialize cohort-specific parameters
@@ -29,18 +31,36 @@ def run_calibration(cohort):
 if __name__ == '__main__':
     start = timer()
     if c.MODE == 'visualize':
-        # Run simplest verion of the model
+        # Run simplest verion of the model: creates plot of model incidence vs SEER incidence
         # Initialize cohort-specific parameters
-        ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(cohort, c.COHORT_SEX, c.COHORT_RACE)
+        ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(c.COHORT_YEAR, c.COHORT_SEX, c.COHORT_RACE)
         model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr)
-        print(objective(model.run(c.CANCER_PDF).cancerIncArr, c.CANCER_INC))
-        plt.plot(np.arange(c.START_AGE, c.END_AGE), model.run(c.CANCER_PDF).cancerIncArr[:-1], label='Model', color='blue')
-        plt.plot(np.arange(c.min_age, c.max_age+1), c.CANCER_INC, label='SEER', color='darkred', alpha=0.5)
+        print(objective(model.run(CANCER_PDF).cancerIncArr, min_age, max_age, CANCER_INC))
+        plt.plot(np.arange(c.START_AGE, c.END_AGE), model.run(CANCER_PDF).cancerIncArr[:-1], label='Model', color='blue')
+        plt.plot(np.arange(min_age, max_age+1), CANCER_INC, label='SEER', color='darkred', alpha=0.5)
         plt.legend(loc='upper left')
         plt.xlabel('Age')
         plt.ylabel('Incidence (per 100k)')
         plt.title(f"Cancer Incidence by Age for Birthyear={c.COHORT_YEAR}, Sex={c.COHORT_SEX}, Race={c.COHORT_RACE}, Site={c.CANCER_SITES[0]}")
         plt.show()
+    elif c.MODE == 'cancer_dist':
+        # Initialize cohort-specific parameters
+        ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(c.COHORT_YEAR, c.COHORT_SEX, c.COHORT_RACE)
+        # Plot pdf
+        fig = plt.figure(figsize = (10,5))
+        plt.bar(range(c.START_AGE, c.END_AGE+1), CANCER_PDF) # doesn't start at age 0, starts at age 1
+        plt.xlabel("Age")
+        plt.ylabel("PDF")
+        plt.savefig(c.PATHS['plots'] + 'cancer_pdf.png')
+        plt.clf()
+
+        fig = plt.figure(figsize = (10,5))
+        plt.bar(range(c.START_AGE, c.END_AGE+1), np.cumsum(CANCER_PDF)) # doesn't start at age 0, starts at age 1
+        plt.xlabel("Age")
+        plt.ylabel("CDF")
+        plt.savefig(c.PATHS['plots'] + 'cancer_cdf.png')
+        plt.clf()
+
     elif c.MODE == 'calibrate':
         if c.MULTI_COHORT_CALIBRATION:
             print(f"RUNNING MULTI-COHORT CALIBRATION: FIRST COHORT = {c.FIRST_COHORT}, LAST COHORT = {c.LAST_COHORT}, SEX = {c.COHORT_SEX}, RACE = {c.COHORT_RACE}")

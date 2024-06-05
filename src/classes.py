@@ -22,7 +22,8 @@ class Patient:
         self.age = starting_age
         self.current_state = 'Healthy'
         self.history = {self.current_state:self.age}  # A dictionary to store the state and the age at entry to the state
-    
+        self.randVal_generator = np.random.RandomState(pid)
+
     def __repr__(self) -> str:
         """
         Return a string representation of the Patient object for debugging purposes.
@@ -41,8 +42,8 @@ class Patient:
         self.reset()
         while 'Death' not in self.current_state:
             if self.current_state == 'Healthy':
-                time_to_od = np.searchsorted(ac_cdf[self.age,:], np.random.rand()) - self.age
-                time_to_cancer = np.searchsorted(np.cumsum(cancer_pdf), np.random.rand())
+                time_to_od = np.searchsorted(ac_cdf[self.age,:], self.randVal_generator.random_sample()) - self.age
+                time_to_cancer = np.searchsorted(np.cumsum(cancer_pdf), self.randVal_generator.random_sample())
                 if time_to_cancer <= time_to_od:  # If cancer happens before death
                     self.current_state = 'Cancer'
                     self.age += time_to_cancer
@@ -52,8 +53,8 @@ class Patient:
                 self.history[self.current_state] = self.age
             if self.current_state == 'Cancer':
                 time_at_risk = min(10, c.END_AGE-self.age-1)
-                time_to_cd = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 0], np.random.rand())
-                time_to_od = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 1], np.random.rand())
+                time_to_cd = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 0], self.randVal_generator.random_sample())
+                time_to_od = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 1], self.randVal_generator.random_sample())
                 if time_to_od < time_to_cd:  # # If other death happens before cancer
                     self.current_state = 'Other Death'
                     self.age += time_to_od
