@@ -7,8 +7,7 @@ import configs as c
 from classes import *
 from tqdm import tqdm
 import multiprocessing as mp
-import random 
-random.seed(42)
+import pandas as pd
 
 def run_calibration(cohort):
     # Initialize cohort-specific parameters
@@ -36,6 +35,13 @@ if __name__ == '__main__':
         ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(c.COHORT_YEAR, c.COHORT_SEX, c.COHORT_RACE)
         model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr)
         print(objective(model.run(CANCER_PDF).cancerIncArr, min_age, max_age, CANCER_INC))
+
+        # Output model incidence, cancer count, alive count
+        df = pd.DataFrame(model.cancerIncArr, columns = ['Incidence'])
+        df['Cancer_Count'] = model.cancerCountArr
+        df['Alive_Count'] = model.aliveCountArr
+        df.to_excel(c.PATHS['output'] + f"{c.COHORT_YEAR}_{c.COHORT_SEX}_{c.COHORT_RACE}_{c.CANCER_SITES[0]}_SUMMARY.xlsx")
+
         plt.plot(np.arange(c.START_AGE, c.END_AGE), model.run(CANCER_PDF).cancerIncArr[:-1], label='Model', color='blue')
         plt.plot(np.arange(min_age, max_age+1), CANCER_INC, label='SEER', color='darkred', alpha=0.5)
         plt.legend(loc='upper left')
@@ -43,7 +49,7 @@ if __name__ == '__main__':
         plt.ylabel('Incidence (per 100k)')
         plt.title(f"Cancer Incidence by Age for Birthyear={c.COHORT_YEAR}, Sex={c.COHORT_SEX}, Race={c.COHORT_RACE}, Site={c.CANCER_SITES[0]}")
         plt.show()
-    elif c.MODE == 'cancer_dist':
+    elif c.MODE == 'cancer_dist': # Saves a plot of the calibrated cancer cdf and pdf
         # Initialize cohort-specific parameters
         ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(c.COHORT_YEAR, c.COHORT_SEX, c.COHORT_RACE)
         # Plot pdf
@@ -51,14 +57,14 @@ if __name__ == '__main__':
         plt.bar(range(c.START_AGE, c.END_AGE+1), CANCER_PDF) # doesn't start at age 0, starts at age 1
         plt.xlabel("Age")
         plt.ylabel("PDF")
-        plt.savefig(c.PATHS['plots'] + 'cancer_pdf.png')
+        plt.savefig(c.PATHS['plots'] + f"cancer_pdf_{c.COHORT_YEAR}_{c.COHORT_SEX}_{c.COHORT_RACE}_{c.CANCER_SITES[0]}.png")
         plt.clf()
 
         fig = plt.figure(figsize = (10,5))
         plt.bar(range(c.START_AGE, c.END_AGE+1), np.cumsum(CANCER_PDF)) # doesn't start at age 0, starts at age 1
         plt.xlabel("Age")
         plt.ylabel("CDF")
-        plt.savefig(c.PATHS['plots'] + 'cancer_cdf.png')
+        plt.savefig(c.PATHS['plots'] + f"cancer_cdf_{c.COHORT_YEAR}_{c.COHORT_SEX}_{c.COHORT_RACE}_{c.CANCER_SITES[0]}.png")
         plt.clf()
 
     elif c.MODE == 'calibrate':

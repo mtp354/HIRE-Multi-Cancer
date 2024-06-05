@@ -10,7 +10,7 @@ np.set_printoptions(precision=5, suppress=True)
 MODE = 'visualize'
 # Options:
 # - calibrate: run simulated annealing for cancer incidence
-# - visualize: plot incidence and mortality
+# - visualize: plot incidence and mortality, output cancer incidence, cancer count, alive count
 # - cancer_dist: plot cancer pdf and cdf
 SAVE_RESULTS = True  # whether to save results to file
 
@@ -68,7 +68,8 @@ PATHS = {
     'calibration': '../outputs/calibration/',
     'plots_calibration': '../outputs/calibration/plots/',
     'sojourn_time': '../data/Sojourn Times/',
-    'plots': '../outputs/plots/'
+    'plots': '../outputs/plots/',
+    'output': '../outputs/'
 }
 
 # Selecting Cohort

@@ -90,6 +90,10 @@ class DiscreteEventSimulation:
         self.cancerMortArr = np.zeros((c.END_AGE - c.START_AGE + 1))  # Initialize cancer mortality array
         self.ac_cdf = ac_cdf
         self.cancer_surv_arr = cancer_surv_arr
+
+        # Counts
+        self.cancerCountArr = np.zeros((c.END_AGE - c.START_AGE + 1))
+        self.aliveCountArr = np.zeros((c.END_AGE - c.START_AGE + 1))
     
     def run(self, cancer_pdf):
         """
@@ -112,6 +116,8 @@ class DiscreteEventSimulation:
             except KeyError: 
                 pass
         num_alive = self.num_patients - self.acMortArr.cumsum() - self.cancerMortArr.cumsum()  # Adjusting denominator based on number alive
+        self.aliveCountArr = num_alive
+        self.cancerCountArr = self.cancerIncArr.copy()
         self.cancerIncArr =100000*np.divide(self.cancerIncArr, num_alive+1)  # adding 1 to avoid NaNs
         return self
     
