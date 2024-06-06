@@ -73,7 +73,7 @@ if __name__ == '__main__':
         if c.MULTI_COHORT_CALIBRATION:
             print(f"RUNNING MULTI-COHORT CALIBRATION: FIRST COHORT = {c.FIRST_COHORT}, LAST COHORT = {c.LAST_COHORT}, SEX = {c.COHORT_SEX}, RACE = {c.COHORT_RACE}")
             print(f"CANCERS = {c.CANCER_SITES}")
-            with mp.Pool(processes=mp.cpu_count()) as pool:
+            with mp.Pool(processes=c.NUM_PROCESSES) as pool:
                 results = list(tqdm(pool.imap(run_calibration, range(c.FIRST_COHORT, c.LAST_COHORT + 1)), total=c.LAST_COHORT - c.FIRST_COHORT + 1))
 
         else:

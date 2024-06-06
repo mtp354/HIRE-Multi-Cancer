@@ -33,6 +33,9 @@ if COHORT_SEX == 'Male' and ('Ovarian' in CANCER_SITES or 'Uterine' in CANCER_SI
 elif COHORT_SEX == 'Female' and 'Prostate' in CANCER_SITES:
     raise Exception("Cancer site and cohort sex combination is not valid in configs.py")
 
+# Define multiprocessing parameters
+NUM_PROCESSES = 24
+
 # Define simulated annealing parameters
 NUM_ITERATIONS = 1_000
 START_TEMP = 10
