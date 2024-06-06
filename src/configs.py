@@ -39,7 +39,7 @@ START_TEMP = 10
 STEP_SIZE = 0.001
 VERBOSE = True
 MASK_SIZE = 0.1  # value between 0 and 1, the fraction of values to modify each step
-LOAD_LATEST = False  # If true, load the latest cancer_pdf from file as starting point
+LOAD_LATEST = True  # If true, load the latest cancer_pdf from file as starting point
 # LOAD_LATEST is used to get the most recently calibrated numpy file to run the model
 # First checks if there is a previous file for same sex/race/cancer site, then same sex/cancer site,
 # then same race/cancer site, then same cancer site

@@ -42,9 +42,11 @@ if __name__ == '__main__':
         df['Alive_Count'] = model.aliveCountArr
         df.to_excel(c.PATHS['output'] + f"{c.COHORT_YEAR}_{c.COHORT_SEX}_{c.COHORT_RACE}_{c.CANCER_SITES[0]}_SUMMARY.xlsx")
 
+        # Limit the plot's y-axis to just above the highest SEER incidence
         plt.plot(np.arange(c.START_AGE, c.END_AGE), model.run(CANCER_PDF).cancerIncArr[:-1], label='Model', color='blue')
         plt.plot(np.arange(min_age, max_age+1), CANCER_INC, label='SEER', color='darkred', alpha=0.5)
         plt.legend(loc='upper left')
+        plt.ylim(0, CANCER_INC.max() + 30)
         plt.xlabel('Age')
         plt.ylabel('Incidence (per 100k)')
         plt.title(f"Cancer Incidence by Age for Birthyear={c.COHORT_YEAR}, Sex={c.COHORT_SEX}, Race={c.COHORT_RACE}, Site={c.CANCER_SITES[0]}")
@@ -85,9 +87,11 @@ if __name__ == '__main__':
             # Save as numpy file, time_stamped
             if c.SAVE_RESULTS:
                 np.save(c.PATHS['calibration'] + f"{c.COHORT_SEX}_{c.COHORT_RACE}_{c.COHORT_YEAR}_{c.CANCER_SITES[0]}_{datetime.now():%Y-%m-%d_%H-%M-%S}.npy", best)
+            # Limit the plot's y-axis to just above the highest SEER incidence
             plt.plot(np.arange(c.START_AGE, c.END_AGE), model.run(best).cancerIncArr[:-1], label='Model', color='blue')
             plt.plot(np.arange(min_age, max_age+1), CANCER_INC, label='SEER', color='darkred', alpha=0.5)
             plt.legend(loc='upper left')
+            plt.ylim(0, CANCER_INC.max() + 30)
             plt.xlabel('Age')
             plt.ylabel('Incidence (per 100k)')
             plt.title(f"Cancer Incidence by Age for Birthyear={c.COHORT_YEAR}, Sex={c.COHORT_SEX}, Race={c.COHORT_RACE}, Site={c.CANCER_SITES[0]}")
