@@ -7,20 +7,21 @@ import os
 # Aesthetic Preferences
 np.set_printoptions(precision=5, suppress=True)
 
-MODE = 'calibrate'
+MODE = 'visualize'
 # Options:
 # - calibrate: run simulated annealing for cancer incidence
-# - visualize: plot incidence and mortality
+# - visualize: plot incidence and mortality, output cancer incidence, cancer count, alive count
+# - cancer_dist: plot cancer pdf and cdf
 SAVE_RESULTS = True  # whether to save results to file
 
 # Define cohort characteristics
-COHORT_YEAR = 1940  # birth year of the cohort
+COHORT_YEAR = 1930  # birth year of the cohort
 START_AGE = 0
 END_AGE = 100
 COHORT_SEX = 'Male'  # Female/Male
-COHORT_RACE = 'Black'  # Black/White
+COHORT_RACE = 'White'  # Black/White
 NUM_PATIENTS = 100_000
-CANCER_SITES = ['Lung']
+CANCER_SITES = ['Gastric']
 # Full list:
 # MP 'Bladder' 'Breast' 'Cervical' 'Colorectal' 'Esophageal' 
 # JP 'Gastric' 'Lung' 'Prostate' 'Uterine'
@@ -32,30 +33,47 @@ if COHORT_SEX == 'Male' and ('Ovarian' in CANCER_SITES or 'Uterine' in CANCER_SI
 elif COHORT_SEX == 'Female' and 'Prostate' in CANCER_SITES:
     raise Exception("Cancer site and cohort sex combination is not valid in configs.py")
 
+# Define multiprocessing parameters
+NUM_PROCESSES = 24
+
 # Define simulated annealing parameters
 NUM_ITERATIONS = 1_000
 START_TEMP = 10
 STEP_SIZE = 0.001
 VERBOSE = True
 MASK_SIZE = 0.1  # value between 0 and 1, the fraction of values to modify each step
-LOAD_LATEST = False  # If true, load the latest cancer_pdf from file as starting point
+LOAD_LATEST = True  # If true, load the latest cancer_pdf from file as starting point
+# LOAD_LATEST is used to get the most recently calibrated numpy file to run the model
+# First checks if there is a previous file for same sex/race/cancer site, then same sex/cancer site,
+# then same race/cancer site, then same cancer site
+
+# Note: You can either do multi-calibration by increasing or decreasing cohort years
+# Range is based on FIRST_COHORT and LAST_COHORT
+# To do calibration in ascending cohort years, you MUST have a starting numpy file for the FIRST_COHORT or else
+# LOAD_LATEST cannot work with MULTI_COHORT_CALIBRATION correctly
+# So generally you should set both LOAD_LATEST and MULTI_COHORT_CALIBRATION to True
+# You MUST do multi-calibration in ascending order FIRST before doing descending order
+# You CANNOT start multi-cohort calibration in descending order first
+# When you do reverse calibration, remember that the LAST_COHORT looks at the next +1 birth year cohort year
 MULTI_COHORT_CALIBRATION = True
+REVERSE_MULTI_COHORT_CALIBRATION = False # determines whether you want to reverse the cohort year range in calibration
 if MULTI_COHORT_CALIBRATION:
     FIRST_COHORT = 1930
     LAST_COHORT = 1960
+if REVERSE_MULTI_COHORT_CALIBRATION == True and MULTI_COHORT_CALIBRATION == False:
+    raise ValueError("ERROR: You cannot have REVERSE_MULTI_COHORT_CALIBRATION set to True while MULTI_COHORT_CALIBRATION is set to False")
 
 # Define input and output paths
 PATHS = {
-    'incidence': '../data/cancer_incidence/',
-    'mortality': '../data/mortality/',
-    'survival': '../data/cancer_survival/',
-    'calibration': '../outputs/calibration/',
-    'plots_calibration': '../outputs/calibration/plots/',
-    'sojourn_time': '../data/Sojourn Times/',
-    'plots': '../outputs/plots/'
+    'incidence': './data/cancer_incidence/',
+    'mortality': './data/mortality/',
+    'survival': './data/cancer_survival/',
+    'calibration': './outputs/calibration/',
+    'plots_calibration': './outputs/calibration/plots/',
+    'sojourn_time': './data/Sojourn Times/',
+    'plots': './outputs/plots/',
+    'output': './outputs/'
 }
-
-
 
 # Selecting Cohort
 def select_cohort(birthyear, sex, race):
@@ -116,16 +134,26 @@ def select_cohort(birthyear, sex, race):
             year = file.split('_')[2] # grabs the cohort year
             if int(year) not in all_cohort_years:
                 all_cohort_years.append(int(year))
-        # Sort ascending years
-        all_cohort_years.sort()
-        # Get the max calibrated cohort year that is just below or equal to the COHORT_YEAR
-        for year in all_cohort_years:
-            if year <= birthyear:
-                max_year = year
-        final_list = []
-        for file in list_of_files:
-            if f'_{max_year}_' in file:
-                final_list.append(file)
+        if MULTI_COHORT_CALIBRATION == False or REVERSE_MULTI_COHORT_CALIBRATION == False: # ascending birth year calibration
+            # Sort ascending years
+            all_cohort_years.sort()
+            # Get the max calibrated cohort year that is just below or equal to the COHORT_YEAR
+            for year in all_cohort_years:
+                if year <= birthyear:
+                    max_year = year
+            final_list = []
+            for file in list_of_files:
+                if f'_{max_year}_' in file:
+                    final_list.append(file)
+        elif MULTI_COHORT_CALIBRATION and REVERSE_MULTI_COHORT_CALIBRATION: # descending birth year calibration
+            # Get the min calibrated cohort year that is just above the COHORT_YEAR
+            min_year = birthyear + 1
+            final_list = []
+            for file in list_of_files:
+                if f'_{min_year}_' in file:
+                    final_list.append(file)
+        else:
+            raise ValueError("ERROR: LOAD_LATEST fails in configs.py")
         # Read the latest file
         latest_file = max(final_list, key=os.path.getctime)
         CANCER_PDF = np.load(latest_file)
