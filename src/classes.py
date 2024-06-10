@@ -2,7 +2,7 @@
 import numpy as np
 import configs as c
 from sklearn.metrics import mean_squared_error
-from scipy.signal import savgol_filter
+from csaps import csaps
 from tqdm import tqdm
 
 
@@ -156,8 +156,9 @@ def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE):
     """
     mask = np.random.random(candidate.shape) > mask_size # fraction of values to modify
     candidate[mask] += np.random.uniform(-step_size, step_size, mask.sum())
-    candidate = savgol_filter(candidate, 31, 4, mode='interp')  # smoothing
-    return np.clip(candidate, 0.0, 1.0)
+    candidate[0] = 0.0  # anchoring
+    candidate = csaps(np.linspace(0, 100, 101), candidate, smooth=0.001)(np.linspace(0, 100, 101)).clip(0.0, 1.0)   # smoothing
+    return candidate
 
 def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterations=c.NUM_ITERATIONS, 
                         start_temp=c.START_TEMP, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE, verbose=c.VERBOSE):
