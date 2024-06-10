@@ -156,7 +156,7 @@ def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE):
     """
     mask = np.random.random(candidate.shape) > mask_size # fraction of values to modify
     candidate[mask] += np.random.uniform(-step_size, step_size, mask.sum())
-    candidate[0] = 0.0  # anchoring
+    candidate[:18] = 0.0  # anchoring
     candidate = csaps(np.linspace(0, 100, 101), candidate, smooth=0.001)(np.linspace(0, 100, 101)).clip(0.0, 1.0)   # smoothing
     return candidate
 

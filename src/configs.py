@@ -34,7 +34,7 @@ elif COHORT_SEX == 'Female' and 'Prostate' in CANCER_SITES:
     raise Exception("Cancer site and cohort sex combination is not valid in configs.py")
 
 # Define multiprocessing parameters
-NUM_PROCESSES = 24
+NUM_PROCESSES = 4
 
 # Define simulated annealing parameters
 NUM_ITERATIONS = 1_000
@@ -55,7 +55,7 @@ LOAD_LATEST = True  # If true, load the latest cancer_pdf from file as starting 
 # You MUST do multi-calibration in ascending order FIRST before doing descending order
 # You CANNOT start multi-cohort calibration in descending order first
 # When you do reverse calibration, remember that the LAST_COHORT looks at the next +1 birth year cohort year
-MULTI_COHORT_CALIBRATION = True
+MULTI_COHORT_CALIBRATION = False
 REVERSE_MULTI_COHORT_CALIBRATION = False # determines whether you want to reverse the cohort year range in calibration
 if MULTI_COHORT_CALIBRATION:
     FIRST_COHORT = 1930
