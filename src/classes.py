@@ -7,14 +7,14 @@ from tqdm import tqdm
 
 
 class Patient:
-    def __init__(self, pid, starting_age=c.START_AGE):
+    def __init__(self, pid, num_cancers, starting_age=c.START_AGE):
         """
         Initializes the object with the given `pid`, `age`, `cancer_pdf`, and `randVal`.
 
         :param pid: The patient ID.
+        :param num_cancers: The number of cancer sites
         :param age: The age of the patient.
-        :param cancer_pdf: The PDF file containing information about cancer.
-        :param randVal: The random value for initialization.
+        :param cancer_pdf: The PDF file containing information about cancer. This can be a list if there are multiple cancers.
 
         :return: None
         """
@@ -23,6 +23,8 @@ class Patient:
         self.current_state = 'Healthy'
         self.history = {self.current_state:self.age}  # A dictionary to store the state and the age at entry to the state
         self.randVal_generator = np.random.RandomState(pid)
+        self.num_cancers = num_cancers
+        self.cancer_type = None # only used for multiple cancers
 
     def __repr__(self) -> str:
         """
@@ -43,18 +45,48 @@ class Patient:
         while 'Death' not in self.current_state:
             if self.current_state == 'Healthy':
                 time_to_od = np.searchsorted(ac_cdf[self.age,:], self.randVal_generator.random_sample()) - self.age
-                time_to_cancer = np.searchsorted(np.cumsum(cancer_pdf), self.randVal_generator.random_sample())
-                if time_to_cancer <= time_to_od:  # If cancer happens before death
-                    self.current_state = 'Cancer'
-                    self.age += time_to_cancer
+                # Cancer pdf is a list if there are multiple cancers being run
+                if self.num_cancers == 1:
+                    time_to_cancer = np.searchsorted(np.cumsum(cancer_pdf), self.randVal_generator.random_sample())
+                    print("time_to_cancer:", time_to_cancer)
+                    if time_to_cancer <= time_to_od:  # If cancer happens before death
+                        self.current_state = 'Cancer'
+                        self.age += time_to_cancer
+                    else:
+                        self.current_state = 'Other Death'
+                        self.age += time_to_od
+
                 else:
-                    self.current_state = 'Other Death'
-                    self.age += time_to_od
+                    # Create a numpy array to hold all the time_to_cancer for each cancer site
+                    time_to_cancer_arr = np.zeros((self.num_cancers))
+                    for i in range(self.num_cancers): # in this case cancer_pdf is a list
+                        temp_time = np.searchsorted(np.cumsum(cancer_pdf[i]), self.randVal_generator.random_sample())
+                        time_to_cancer_arr[i] += temp_time
+                    
+                    # Find the earliest age out of the all the cancer times
+                    time_to_cancer = int(time_to_cancer_arr.min())
+                    i_time_to_cancer = time_to_cancer_arr.argmin() # index of min time
+                    if time_to_cancer <= time_to_od:  # If cancer happens before death
+                        self.current_state = 'Cancer'
+                        self.cancer_type = c.CANCER_SITES[i_time_to_cancer]
+                        self.age += time_to_cancer
+                    else:
+                        self.current_state = 'Other Death'
+                        self.age += time_to_od
+
                 self.history[self.current_state] = self.age
+            
             if self.current_state == 'Cancer':
                 time_at_risk = min(10, c.END_AGE-self.age-1)
-                time_to_cd = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 0], self.randVal_generator.random_sample())
-                time_to_od = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 1], self.randVal_generator.random_sample())
+
+                # If running multiple cancers, make sure to select the correct cancer_surv_arrr
+                if self.num_cancers == 1:
+                    time_to_cd = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 0], self.randVal_generator.random_sample())
+                    time_to_od = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 1], self.randVal_generator.random_sample())
+                else:
+                    time_to_cd = np.searchsorted(cancer_surv_arr[c.CANCER_SITES.index(self.cancer_type)][self.age - c.START_AGE, :1+time_at_risk, 0], self.randVal_generator.random_sample())
+                    time_to_od = np.searchsorted(cancer_surv_arr[c.CANCER_SITES.index(self.cancer_type)][self.age - c.START_AGE, :1+time_at_risk, 1], self.randVal_generator.random_sample())
+
                 if time_to_od < time_to_cd:  # # If other death happens before cancer
                     self.current_state = 'Other Death'
                     self.age += time_to_od
@@ -75,16 +107,18 @@ class Patient:
         self.age = c.START_AGE
         self.current_state = 'Healthy'
         self.history = {self.current_state:self.age}
-
+        self.cancer_type = None # only used for multiple cancers
 
 class DiscreteEventSimulation:
-    def __init__(self, ac_cdf, cancer_surv_arr, num_patients=c.NUM_PATIENTS, starting_age=c.START_AGE):
+    def __init__(self, ac_cdf, cancer_surv_arr, num_cancers, num_patients=c.NUM_PATIENTS, starting_age=c.START_AGE):
         """
         Initializes the object with the given `cancer_cdf`.
         """
         self.num_patients = num_patients
-        self.patients = [Patient(pid, starting_age) for pid in range(self.num_patients)]
+        self.patients = [Patient(pid, num_cancers, starting_age) for pid in range(self.num_patients)]
         self.log = []  # A log of all patient dictionaries
+        self.num_cancers = num_cancers # number of cancer sites we are running
+
         self.cancerIncArr = np.zeros((c.END_AGE - c.START_AGE + 1))  # Initialize incidence array
         self.acMortArr = np.zeros((c.END_AGE - c.START_AGE + 1))  # Initialize mortality array
         self.cancerMortArr = np.zeros((c.END_AGE - c.START_AGE + 1))  # Initialize cancer mortality array
@@ -92,7 +126,7 @@ class DiscreteEventSimulation:
         self.cancer_surv_arr = cancer_surv_arr
 
         # Counts
-        self.cancerCountArr = np.zeros((c.END_AGE - c.START_AGE + 1))
+        self.cancerCountArr = np.zeros((c.END_AGE - c.START_AGE + 1)) # all cancers
         self.aliveCountArr = np.zeros((c.END_AGE - c.START_AGE + 1))
     
     def run(self, cancer_pdf):
@@ -100,7 +134,7 @@ class DiscreteEventSimulation:
         Runs the discrete event simulation for the given number of patients.
         """
         self.reset()
-        for patient in self.patients:
+        for patient in self.patients: # runs for each patient
             patient_history = patient.run(cancer_pdf, self.ac_cdf, self.cancer_surv_arr)  # running patient
             self.log.append(patient_history)  # recording to log
             try:

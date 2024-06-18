@@ -31,26 +31,49 @@ if __name__ == '__main__':
     start = timer()
     if c.MODE == 'visualize':
         # Run simplest verion of the model: creates plot of model incidence vs SEER incidence
+        # Runs for a single cancer site or multiple cancer sites
+        print(f"RUNNING MODEL VISUALIZATION: COHORT = {c.COHORT_YEAR}, SEX = {c.COHORT_SEX}, RACE = {c.COHORT_RACE}")
+        print(f"CANCERS = {c.CANCER_SITES}")
         # Initialize cohort-specific parameters
-        ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(c.COHORT_YEAR, c.COHORT_SEX, c.COHORT_RACE)
-        model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr)
-        print(objective(model.run(CANCER_PDF).cancerIncArr, min_age, max_age, CANCER_INC))
+        if len(c.CANCER_SITES) == 1: # single cancer site
+            ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(c.COHORT_YEAR, c.COHORT_SEX, c.COHORT_RACE)
+            model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr, len(c.CANCER_SITES))
+            print(objective(model.run(CANCER_PDF).cancerIncArr, min_age, max_age, CANCER_INC))
+        
+            # Output model incidence, cancer count, alive count
+            df = pd.DataFrame(model.cancerIncArr, columns = ['Incidence'])
+            df['Cancer_Count'] = model.cancerCountArr
+            df['Alive_Count'] = model.aliveCountArr
+            df.to_excel(c.PATHS['output'] + f"{c.COHORT_YEAR}_{c.COHORT_SEX}_{c.COHORT_RACE}_{c.CANCER_SITES[0]}_SUMMARY.xlsx")
 
-        # Output model incidence, cancer count, alive count
-        df = pd.DataFrame(model.cancerIncArr, columns = ['Incidence'])
-        df['Cancer_Count'] = model.cancerCountArr
-        df['Alive_Count'] = model.aliveCountArr
-        df.to_excel(c.PATHS['output'] + f"{c.COHORT_YEAR}_{c.COHORT_SEX}_{c.COHORT_RACE}_{c.CANCER_SITES[0]}_SUMMARY.xlsx")
+            # Limit the plot's y-axis to just above the highest SEER incidence
+            plt.plot(np.arange(c.START_AGE, c.END_AGE), model.run(CANCER_PDF).cancerIncArr[:-1], label='Model', color='blue')
+            plt.plot(np.arange(min_age, max_age+1), CANCER_INC, label='SEER', color='darkred', alpha=0.5)
+            plt.legend(loc='upper left')
+            plt.ylim(0, CANCER_INC.max() + 30)
+            plt.xlabel('Age')
+            plt.ylabel('Incidence (per 100k)')
+            plt.title(f"Cancer Incidence by Age for Birthyear={c.COHORT_YEAR}, Sex={c.COHORT_SEX}, Race={c.COHORT_RACE}, Site={c.CANCER_SITES[0]}")
+            plt.show()
+        
+        else: # multiple cancer sites
+            ac_cdf, min_age, max_age, CANCER_PDF_lst, cancer_surv_arr_lst, CANCER_INC_lst = c.select_cohort(c.COHORT_YEAR,
+                                                                                                            c.COHORT_SEX, c.COHORT_RACE)
+            model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr_lst, len(c.CANCER_SITES))
+            plt.plot(np.arange(c.START_AGE, c.END_AGE), model.run(CANCER_PDF_lst).cancerIncArr[:-1], label='Model', color='blue')
+            
+            # Output model incidence, cancer count, alive count
+            df = pd.DataFrame(model.cancerIncArr, columns = ['Incidence'])
+            df['Cancer_Count'] = model.cancerCountArr
+            df['Alive_Count'] = model.aliveCountArr
+            df.to_excel(c.PATHS['output'] + f"{c.COHORT_YEAR}_{c.COHORT_SEX}_{c.COHORT_RACE}_{str(c.CANCER_SITES)}_SUMMARY.xlsx")
 
-        # Limit the plot's y-axis to just above the highest SEER incidence
-        plt.plot(np.arange(c.START_AGE, c.END_AGE), model.run(CANCER_PDF).cancerIncArr[:-1], label='Model', color='blue')
-        plt.plot(np.arange(min_age, max_age+1), CANCER_INC, label='SEER', color='darkred', alpha=0.5)
-        plt.legend(loc='upper left')
-        plt.ylim(0, CANCER_INC.max() + 30)
-        plt.xlabel('Age')
-        plt.ylabel('Incidence (per 100k)')
-        plt.title(f"Cancer Incidence by Age for Birthyear={c.COHORT_YEAR}, Sex={c.COHORT_SEX}, Race={c.COHORT_RACE}, Site={c.CANCER_SITES[0]}")
-        plt.show()
+            plt.legend(loc='upper left')
+            plt.xlabel('Age')
+            plt.ylabel('Incidence (per 100k)')
+            plt.title(f"Cancer Incidence by Age for Birthyear={c.COHORT_YEAR}, Sex={c.COHORT_SEX}, Race={c.COHORT_RACE}, Site={str(c.CANCER_SITES)}")
+            plt.show()
+
     elif c.MODE == 'cancer_dist': # Saves a plot of the calibrated cancer cdf and pdf
         # Initialize cohort-specific parameters
         ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(c.COHORT_YEAR, c.COHORT_SEX, c.COHORT_RACE)
