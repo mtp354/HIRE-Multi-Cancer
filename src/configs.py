@@ -9,19 +9,19 @@ np.set_printoptions(precision=5, suppress=True)
 
 MODE = 'visualize'
 # Options:
-# - calibrate: run simulated annealing for cancer incidence
+# - calibrate: run simulated annealing for cancer incidence (one site)
 # - visualize: plot incidence and mortality, output cancer incidence, cancer count, alive count
 # - cancer_dist: plot cancer pdf and cdf
 SAVE_RESULTS = True  # whether to save results to file
 
 # Define cohort characteristics
-COHORT_YEAR = 1930  # birth year of the cohort
+COHORT_YEAR = 1940  # birth year of the cohort
 START_AGE = 0
 END_AGE = 100
 COHORT_SEX = 'Male'  # Female/Male
 COHORT_RACE = 'White'  # Black/White
 NUM_PATIENTS = 100_000
-CANCER_SITES = ['Gastric']
+CANCER_SITES = ['Gastric', 'Lung']
 # Full list:
 # MP 'Bladder' 'Breast' 'Cervical' 'Colorectal' 'Esophageal' 
 # JP 'Gastric' 'Lung' 'Prostate' 'Uterine'
@@ -32,6 +32,12 @@ if COHORT_SEX == 'Male' and ('Ovarian' in CANCER_SITES or 'Uterine' in CANCER_SI
     raise Exception("Cancer site and cohort sex combination is not valid in configs.py")
 elif COHORT_SEX == 'Female' and 'Prostate' in CANCER_SITES:
     raise Exception("Cancer site and cohort sex combination is not valid in configs.py")
+
+# Raise exceptions for other modes of the model
+if len(CANCER_SITES) > 1 and MODE == 'calibrate':
+    raise Exception("You cannot calibrate multiple cancer sites at the same time")
+if len(CANCER_SITES) > 1 and MODE == 'cancer_dist':
+    raise Exception("You can only run cancer_dist for one cancer site")
 
 # Define multiprocessing parameters
 NUM_PROCESSES = 4
@@ -106,9 +112,19 @@ def select_cohort(birthyear, sex, race):
         ac_cdf[i, :] -= ac_cdf[i, i]  # Subtract the death at current age
     ac_cdf[:, -1] = 1.0  # Adding 1.0 to the end to ensure death at 100
     ac_cdf = np.clip(ac_cdf, 0.0, 1.0)
-
+    
     # Load all cancer incidence target data
-    CANCER_INC = CANCER_INC['Rate'].to_numpy()
+    if len(CANCER_SITES) == 1: # only 1 cancer site
+        CANCER_INC = CANCER_INC['Rate'].to_numpy()
+    else: # multiple cancer sites
+        # Need to separate each cancer incidence
+        # Add numpy array for each cancer site into a lst
+        CANCER_INC_lst = []
+        for i in range(len(CANCER_SITES)):
+            temp = CANCER_INC[CANCER_INC['Site']==CANCER_SITES[i]]
+            tempArr = temp['Rate'].to_numpy()
+            CANCER_INC_lst.append(tempArr)
+
     # For plotting and objective, we only compare years we have data
     min_age = max(1975 - birthyear, 0)
     max_age = min(2018 - birthyear, 84)
@@ -116,58 +132,125 @@ def select_cohort(birthyear, sex, race):
     # Loading in cancer pdf, this is the thing that will be optimized over
     CANCER_PDF = 0.002 * np.ones(END_AGE - START_AGE + 1)  # starting from 0 incidence and using bias optimization
     CANCER_PDF[:35] = 0.0
-    if LOAD_LATEST:
-        # Check if there is a previous numpy file matching the same sex and race and cancer site
-        list_of_files = glob.glob(f'{PATHS["calibration"]}*{COHORT_SEX}_{COHORT_RACE}_*{CANCER_SITES[0]}_*.npy')
-        if len(list_of_files) == 0: # Check if there is a previous numpy file matching the same sex and cancer site
-            list_of_files = glob.glob(f'{PATHS["calibration"]}*{COHORT_SEX}_*{CANCER_SITES[0]}_*.npy')
-        if len(list_of_files) == 0: # Check if there is a previous numpy file matching the same race and cancer site
-            list_of_files = glob.glob(f'{PATHS["calibration"]}*{COHORT_RACE}_*{CANCER_SITES[0]}_*.npy')
-        if len(list_of_files) == 0: # Check if there is a previous numpy file matching the same cancer site
-            list_of_files = glob.glob(f'{PATHS["calibration"]}*{CANCER_SITES[0]}_*.npy')
-        if len(list_of_files) == 0:
-            raise ValueError("No suitable LOAD_LATEST file, set LOAD_LATEST to FALSE")
 
-        # Look at all the unique cohort years in the file names
-        all_cohort_years = []
-        for file in list_of_files:
-            year = file.split('_')[2] # grabs the cohort year
-            if int(year) not in all_cohort_years:
-                all_cohort_years.append(int(year))
-        if MULTI_COHORT_CALIBRATION == False or REVERSE_MULTI_COHORT_CALIBRATION == False: # ascending birth year calibration
-            # Sort ascending years
-            all_cohort_years.sort()
-            # Get the max calibrated cohort year that is just below or equal to the COHORT_YEAR
-            for year in all_cohort_years:
-                if year <= birthyear:
-                    max_year = year
-            final_list = []
+    if LOAD_LATEST:
+        if len(CANCER_SITES) == 0: # 1 cancer site
+            # Check if there is a previous numpy file matching the same sex and race and cancer site
+            list_of_files = glob.glob(f'{PATHS["calibration"]}*{COHORT_SEX}_{COHORT_RACE}_*{CANCER_SITES[0]}_*.npy')
+            if len(list_of_files) == 0: # Check if there is a previous numpy file matching the same sex and cancer site
+                list_of_files = glob.glob(f'{PATHS["calibration"]}*{COHORT_SEX}_*{CANCER_SITES[0]}_*.npy')
+            if len(list_of_files) == 0: # Check if there is a previous numpy file matching the same race and cancer site
+                list_of_files = glob.glob(f'{PATHS["calibration"]}*{COHORT_RACE}_*{CANCER_SITES[0]}_*.npy')
+            if len(list_of_files) == 0: # Check if there is a previous numpy file matching the same cancer site
+                list_of_files = glob.glob(f'{PATHS["calibration"]}*{CANCER_SITES[0]}_*.npy')
+            if len(list_of_files) == 0:
+                raise ValueError("No suitable LOAD_LATEST file, set LOAD_LATEST to FALSE")
+
+            # Look at all the unique cohort years in the file names
+            all_cohort_years = []
             for file in list_of_files:
-                if f'_{max_year}_' in file:
-                    final_list.append(file)
-        elif MULTI_COHORT_CALIBRATION and REVERSE_MULTI_COHORT_CALIBRATION: # descending birth year calibration
-            # Get the min calibrated cohort year that is just above the COHORT_YEAR
-            min_year = birthyear + 1
-            final_list = []
-            for file in list_of_files:
-                if f'_{min_year}_' in file:
-                    final_list.append(file)
-        else:
-            raise ValueError("ERROR: LOAD_LATEST fails in configs.py")
-        # Read the latest file
-        latest_file = max(final_list, key=os.path.getctime)
-        CANCER_PDF = np.load(latest_file)
+                year = file.split('_')[2] # grabs the cohort year
+                if int(year) not in all_cohort_years:
+                    all_cohort_years.append(int(year))
+            if MULTI_COHORT_CALIBRATION == False or REVERSE_MULTI_COHORT_CALIBRATION == False: # ascending birth year calibration
+                # Sort ascending years
+                all_cohort_years.sort()
+                # Get the max calibrated cohort year that is just below or equal to the COHORT_YEAR
+                for year in all_cohort_years:
+                    if year <= birthyear:
+                        max_year = year
+                final_list = []
+                for file in list_of_files:
+                    if f'_{max_year}_' in file:
+                        final_list.append(file)
+            elif MULTI_COHORT_CALIBRATION and REVERSE_MULTI_COHORT_CALIBRATION: # descending birth year calibration
+                # Get the min calibrated cohort year that is just above the COHORT_YEAR
+                min_year = birthyear + 1
+                final_list = []
+                for file in list_of_files:
+                    if f'_{min_year}_' in file:
+                        final_list.append(file)
+            else:
+                raise ValueError("ERROR: LOAD_LATEST fails in configs.py")
+            # Read the latest file
+            latest_file = max(final_list, key=os.path.getctime)
+            CANCER_PDF = np.load(latest_file)
+        else: # multiple cancer sites
+            CANCER_PDF_lst = []
+            for i in range(len(CANCER_SITES)):
+                # Check if there is a previous numpy file matching the same sex and race and cancer site
+                list_of_files = glob.glob(f'{PATHS["calibration"]}*{COHORT_SEX}_{COHORT_RACE}_*{CANCER_SITES[i]}_*.npy')
+                if len(list_of_files) == 0: # Check if there is a previous numpy file matching the same sex and cancer site
+                    list_of_files = glob.glob(f'{PATHS["calibration"]}*{COHORT_SEX}_*{CANCER_SITES[i]}_*.npy')
+                if len(list_of_files) == 0: # Check if there is a previous numpy file matching the same race and cancer site
+                    list_of_files = glob.glob(f'{PATHS["calibration"]}*{COHORT_RACE}_*{CANCER_SITES[i]}_*.npy')
+                if len(list_of_files) == 0: # Check if there is a previous numpy file matching the same cancer site
+                    list_of_files = glob.glob(f'{PATHS["calibration"]}*{CANCER_SITES[i]}_*.npy')
+                if len(list_of_files) == 0:
+                    raise ValueError("No suitable LOAD_LATEST file, set LOAD_LATEST to FALSE")
+
+                # Look at all the unique cohort years in the file names
+                all_cohort_years = []
+                for file in list_of_files:
+                    year = file.split('_')[2] # grabs the cohort year
+                    if int(year) not in all_cohort_years:
+                        all_cohort_years.append(int(year))
+                if MULTI_COHORT_CALIBRATION == False or REVERSE_MULTI_COHORT_CALIBRATION == False: # ascending birth year calibration
+                    # Sort ascending years
+                    all_cohort_years.sort()
+                    # Get the max calibrated cohort year that is just below or equal to the COHORT_YEAR
+                    for year in all_cohort_years:
+                        if year <= birthyear:
+                            max_year = year
+                    final_list = []
+                    for file in list_of_files:
+                        if f'_{max_year}_' in file:
+                            final_list.append(file)
+                elif MULTI_COHORT_CALIBRATION and REVERSE_MULTI_COHORT_CALIBRATION: # descending birth year calibration
+                    # Get the min calibrated cohort year that is just above the COHORT_YEAR
+                    min_year = birthyear + 1
+                    final_list = []
+                    for file in list_of_files:
+                        if f'_{min_year}_' in file:
+                            final_list.append(file)
+                else:
+                    raise ValueError("ERROR: LOAD_LATEST fails in configs.py")
+                # Read the latest file
+                latest_file = max(final_list, key=os.path.getctime)
+                CANCER_PDF = np.load(latest_file)
+                CANCER_PDF_lst.append(CANCER_PDF)
 
     # Loading in cancer survival data
-    SURV = SURV[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
-    SURV = 1 - SURV**(1/10)  # Converting to annual probability of death (assuming constant rate)
+    if len(CANCER_SITES) == 1: # 1 cancer site
+        SURV = SURV[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
+        SURV = 1 - SURV**(1/10)  # Converting to annual probability of death (assuming constant rate)
 
-    # Converting into probability of death at each follow up year
-    cancer_surv_arr = np.zeros((END_AGE - START_AGE + 1, 10, 2))
+        # Converting into probability of death at each follow up year
+        cancer_surv_arr = np.zeros((END_AGE - START_AGE + 1, 10, 2))
 
-    for i in range(10):
-        cancer_surv_arr[:,i,0] = 1-(1-SURV[:,0])**(i+1)  # Cancer death
-        cancer_surv_arr[:,i,1] = 1-(1-SURV[:,1])**(i+1)  # Other death
-        # This is now an an array of shape (100, 10, 2), that represents the cdf of cancer death and other death at each follow up year
+        for i in range(10):
+            cancer_surv_arr[:,i,0] = 1-(1-SURV[:,0])**(i+1)  # Cancer death
+            cancer_surv_arr[:,i,1] = 1-(1-SURV[:,1])**(i+1)  # Other death
+            # This is now an an array of shape (100, 10, 2), that represents the cdf of cancer death and other death at each follow up year
+    else: # multiple cancer sites
+        cancer_surv_arr_lst = []
+        for i in range(len(CANCER_SITES)):
+            temp = SURV[SURV['Site']==CANCER_SITES[i]]
+            temp = temp[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
+            temp = 1 - temp**(1/10)  # Converting to annual probability of death (assuming constant rate)
 
-    return ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC
+            # Converting into probability of death at each follow up year
+            cancer_surv_arr = np.zeros((END_AGE - START_AGE + 1, 10, 2))
+
+            for i in range(10):
+                cancer_surv_arr[:,i,0] = 1-(1-temp[:,0])**(i+1)  # Cancer death
+                cancer_surv_arr[:,i,1] = 1-(1-temp[:,1])**(i+1)  # Other death
+                # This is now an an array of shape (100, 10, 2), that represents the cdf of cancer death and other death at each follow up year
+
+            cancer_surv_arr_lst.append(cancer_surv_arr)
+
+    if len(CANCER_SITES) == 1:
+        return ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC
+    else:
+        return ac_cdf, min_age, max_age, CANCER_PDF_lst, cancer_surv_arr_lst, CANCER_INC_lst
+    # If we are running the model for multiple cancers, each cancer is a separate element in a list
