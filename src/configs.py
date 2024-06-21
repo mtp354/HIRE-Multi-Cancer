@@ -71,14 +71,14 @@ if REVERSE_MULTI_COHORT_CALIBRATION == True and MULTI_COHORT_CALIBRATION == Fals
 
 # Define input and output paths
 PATHS = {
-    'incidence': '../data/cancer_incidence/',
-    'mortality': '../data/mortality/',
-    'survival': '../data/cancer_survival/',
-    'calibration': '../outputs/calibration/',
-    'plots_calibration': '../outputs/calibration/plots/',
-    'sojourn_time': '../data/Sojourn Times/',
-    'plots': '../outputs/plots/',
-    'output': '../outputs/'
+    'incidence': './data/cancer_incidence/',
+    'mortality': './data/mortality/',
+    'survival': './data/cancer_survival/',
+    'calibration': './outputs/calibration/',
+    'plots_calibration': './outputs/calibration/plots/',
+    'sojourn_time': './data/Sojourn Times/',
+    'plots': './outputs/plots/',
+    'output': './outputs/'
 }
 
 # Selecting Cohort
