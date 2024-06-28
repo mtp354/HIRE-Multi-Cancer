@@ -38,6 +38,15 @@ app_ui = ui.page_sidebar(
             value=1930,
             drag_range=False,
         ),
+        ui.input_slider(
+            "age_interval",
+            "Age Interval",
+            min=0,
+            max=100,
+            step=1,
+            sep="",
+            value=(0, 100),
+        ),
         # ui.input_action_button("plot_incidence_btn", "Plot Incidence"),
         open="desktop",
     ),
@@ -61,7 +70,7 @@ app_ui = ui.page_sidebar(
 def server(input, output, session):
     @render.ui
     def selected_params():
-        return f"Site: {input.site()}, Race: {input.race()}, Sex: {input.sex()}, Birth Cohort: {input.cohort()}"
+        return f"Site: {input.site()}, Race: {input.race()}, Sex: {input.sex()}, Birth Cohort: {input.cohort()}, Ages: {input.age_interval()[0]}-{input.age_interval()[1]}"
 
     @render_plotly
     def plot_incidence():
