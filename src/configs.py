@@ -68,6 +68,9 @@ if MULTI_COHORT_CALIBRATION:
     LAST_COHORT = 1960
 if REVERSE_MULTI_COHORT_CALIBRATION == True and MULTI_COHORT_CALIBRATION == False:
     raise ValueError("ERROR: You cannot have REVERSE_MULTI_COHORT_CALIBRATION set to True while MULTI_COHORT_CALIBRATION is set to False")
+if MULTI_COHORT_CALIBRATION and MODE != "calibrate":
+    raise ValueError("ERROR: You cannot set MULTI_COHORT_CALIBRATION to True for a MODE other than calibrate")
+
 
 # Define input and output paths
 PATHS = {
