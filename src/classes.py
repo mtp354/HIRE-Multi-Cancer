@@ -191,10 +191,11 @@ def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE):
     Returns:
     - The new candidate array with values clipped between 0.0 and 1.0.
     """
-    mask = np.random.random(candidate.shape) > mask_size # fraction of values to modify
+    # print(mask_size)
+    mask =  np.random.random(candidate.shape) > mask_size # fraction of values to modify
     candidate[mask] += np.random.uniform(-step_size, step_size, mask.sum())
     candidate[:18] = 0.0  # anchoring
-    candidate = csaps(np.linspace(0, 100, 101), candidate, smooth=0.001)(np.linspace(0, 100, 101)).clip(0.0, 1.0)   # smoothing
+    candidate = csaps(np.linspace(0, 100, 101), candidate, smooth=0.1)(np.linspace(0, 100, 101)).clip(0.0, 1.0)   # smoothing
     return candidate
 
 def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterations=c.NUM_ITERATIONS, 
@@ -214,11 +215,21 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
     """
     x = random.randint(0, 10000)
     randVal_gen = np.random.RandomState(x)
-
+    peak = 1
     best = np.copy(cancer_pdf)
     best_eval = objective(des.run(best).cancerIncArr, min_age, max_age, cancer_inc)  # evaluate the initial point
     curr, curr_eval = best, best_eval  # current working solution
     for i in tqdm(range(n_iterations)):  # running algorithm
+        if i!=0 and i%50==0:
+            if peak == 0:
+                mask_size = mask_size+0.1
+                if mask_size>0.55:
+                    peak = 1
+            else:
+                mask_size = mask_size-0.1
+                if mask_size<0.15:
+                    peak = 0
+            print(mask_size)
         candidate = step(np.copy(curr), step_size, mask_size)
         candidate_eval = objective(des.run(candidate).cancerIncArr, min_age, max_age, cancer_inc)
         t = start_temp /(1+np.log(i+1)) # calculate temperature for current epoch
