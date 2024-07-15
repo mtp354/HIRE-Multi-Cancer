@@ -15,7 +15,7 @@ MODE = 'calibrate'
 SAVE_RESULTS = True  # whether to save results to file
 
 # Define cohort characteristics
-COHORT_YEAR = 1935  # birth year of the cohort
+COHORT_YEAR = 1962  # birth year of the cohort
 START_AGE = 0
 END_AGE = 100
 COHORT_SEX = 'Male'  # Female/Male
@@ -61,7 +61,7 @@ LOAD_LATEST = False # If true, load the latest cancer_pdf from file as starting 
 # You MUST do multi-calibration in ascending order FIRST before doing descending order
 # You CANNOT start multi-cohort calibration in descending order first
 # When you do reverse calibration, remember that the LAST_COHORT looks at the next +1 birth year cohort year
-MULTI_COHORT_CALIBRATION = True
+MULTI_COHORT_CALIBRATION = False
 REVERSE_MULTI_COHORT_CALIBRATION = False # determines whether you want to reverse the cohort year range in calibration
 if MULTI_COHORT_CALIBRATION:
     FIRST_COHORT = 1935
@@ -108,12 +108,21 @@ def select_cohort(birthyear, sex, race):
 
     # CANCER_INC = CANCER_INC.iloc[:-4,:] # when you need to adjust maximum age
     # Add linear line from anchoring point to the age at first incidence data point
-    fillup_age = list(range(18, list(CANCER_INC['Age'])[0]))
-    slope = list(CANCER_INC['Rate'])[0]/(list(CANCER_INC['Age'])[0]-18)
-    intercept = -18*slope
-    fillup_rate = slope*np.array(fillup_age)+intercept
-    fillup_df = pd.DataFrame({'Age': fillup_age, 'Rate': fillup_rate})
-    CANCER_INC = pd.concat([fillup_df, CANCER_INC])
+    if list(CANCER_INC['Age'])[0]>18:
+        fillup_age = list(range(18, list(CANCER_INC['Age'])[0]))
+        slope = list(CANCER_INC['Rate'])[0]/(list(CANCER_INC['Age'])[0]-18)
+        intercept = -18*slope
+        fillup_rate = slope*np.array(fillup_age)+intercept
+        fillup_df = pd.DataFrame({'Age': fillup_age, 'Rate': fillup_rate})
+        CANCER_INC = pd.concat([fillup_df, CANCER_INC])
+        
+        # For plotting and objective, we only compare years we have data
+        min_age = 18
+        max_age = min(2018 - birthyear, 83)
+    else:
+        # For plotting and objective, we only compare years we have data
+        min_age = max(1975 - birthyear, 0)
+        max_age = min(2018 - birthyear, 83)
     
     MORT.query('Sex == @sex & Race == @race & Cohort == @birthyear', inplace=True)
     SURV.query('Sex == @sex & Race == @race', inplace=True)
@@ -139,11 +148,6 @@ def select_cohort(birthyear, sex, race):
             temp = CANCER_INC[CANCER_INC['Site']==CANCER_SITES[i]]
             tempArr = temp['Rate'].to_numpy()
             CANCER_INC_lst.append(tempArr)
-
-    # For plotting and objective, we only compare years we have data
-    min_age = max(1975 - birthyear, 0)
-    min_age = 18
-    max_age = min(2018 - birthyear, 83)
 
     # Loading in cancer pdf, this is the thing that will be optimized over
     CANCER_PDF = 0.002 * np.ones(END_AGE - START_AGE + 1)  # starting from 0 incidence and using bias optimization
