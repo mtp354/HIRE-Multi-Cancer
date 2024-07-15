@@ -7,7 +7,7 @@ import os
 # Aesthetic Preferences
 np.set_printoptions(precision=5, suppress=True)
 
-MODE = 'visualize'
+MODE = 'calibrate'
 # Options:
 # - calibrate: run simulated annealing for cancer incidence (one site)
 # - visualize: plot incidence and mortality, output cancer incidence, cancer count, alive count
@@ -15,13 +15,13 @@ MODE = 'visualize'
 SAVE_RESULTS = True  # whether to save results to file
 
 # Define cohort characteristics
-COHORT_YEAR = 1940  # birth year of the cohort
+COHORT_YEAR = 1935  # birth year of the cohort
 START_AGE = 0
 END_AGE = 100
 COHORT_SEX = 'Male'  # Female/Male
 COHORT_RACE = 'White'  # Black/White
 NUM_PATIENTS = 100_000
-CANCER_SITES = ['Gastric', 'Lung']
+CANCER_SITES = ['Lung']
 # Full list:
 # MP 'Bladder' 'Breast' 'Cervical' 'Colorectal' 'Esophageal' 
 # JP 'Gastric' 'Lung' 'Prostate' 'Uterine'
@@ -47,8 +47,8 @@ NUM_ITERATIONS = 1_000
 START_TEMP = 10
 STEP_SIZE = 0.001
 VERBOSE = True
-MASK_SIZE = 0.1  # value between 0 and 1, the fraction of values to modify each step
-LOAD_LATEST = True  # If true, load the latest cancer_pdf from file as starting point
+MASK_SIZE = 0.5 # value between 0 and 1, the fraction of values to modify each step
+LOAD_LATEST = False # If true, load the latest cancer_pdf from file as starting point
 # LOAD_LATEST is used to get the most recently calibrated numpy file to run the model
 # First checks if there is a previous file for same sex/race/cancer site, then same sex/cancer site,
 # then same race/cancer site, then same cancer site
@@ -61,24 +61,27 @@ LOAD_LATEST = True  # If true, load the latest cancer_pdf from file as starting 
 # You MUST do multi-calibration in ascending order FIRST before doing descending order
 # You CANNOT start multi-cohort calibration in descending order first
 # When you do reverse calibration, remember that the LAST_COHORT looks at the next +1 birth year cohort year
-MULTI_COHORT_CALIBRATION = False
+MULTI_COHORT_CALIBRATION = True
 REVERSE_MULTI_COHORT_CALIBRATION = False # determines whether you want to reverse the cohort year range in calibration
 if MULTI_COHORT_CALIBRATION:
-    FIRST_COHORT = 1930
-    LAST_COHORT = 1960
+    FIRST_COHORT = 1935
+    LAST_COHORT = 1965
 if REVERSE_MULTI_COHORT_CALIBRATION == True and MULTI_COHORT_CALIBRATION == False:
     raise ValueError("ERROR: You cannot have REVERSE_MULTI_COHORT_CALIBRATION set to True while MULTI_COHORT_CALIBRATION is set to False")
+if MULTI_COHORT_CALIBRATION and MODE != "calibrate":
+    raise ValueError("ERROR: You cannot set MULTI_COHORT_CALIBRATION to True for a MODE other than calibrate")
+
 
 # Define input and output paths
 PATHS = {
-    'incidence': './data/cancer_incidence/',
-    'mortality': './data/mortality/',
-    'survival': './data/cancer_survival/',
-    'calibration': './outputs/calibration/',
-    'plots_calibration': './outputs/calibration/plots/',
-    'sojourn_time': './data/Sojourn Times/',
-    'plots': './outputs/plots/',
-    'output': './outputs/'
+    'incidence': '../data/cancer_incidence/',
+    'mortality': '../data/mortality/',
+    'survival': '../data/cancer_survival/',
+    'calibration': '../outputs/calibration/',
+    'plots_calibration': '../outputs/calibration/plots/',
+    'sojourn_time': '../data/Sojourn Times/',
+    'plots': '../outputs/plots/',
+    'output': '../outputs/'
 }
 
 # Selecting Cohort
@@ -101,6 +104,17 @@ def select_cohort(birthyear, sex, race):
     sojourn = sojourn[sojourn['Site'].isin(CANCER_SITES)]
 
     CANCER_INC.query('Sex == @sex & Race == @race & Cohort == @birthyear', inplace=True)
+    
+
+    # CANCER_INC = CANCER_INC.iloc[:-4,:] # when you need to adjust maximum age
+    # Add linear line from anchoring point to the age at first incidence data point
+    fillup_age = list(range(18, list(CANCER_INC['Age'])[0]))
+    slope = list(CANCER_INC['Rate'])[0]/(list(CANCER_INC['Age'])[0]-18)
+    intercept = -18*slope
+    fillup_rate = slope*np.array(fillup_age)+intercept
+    fillup_df = pd.DataFrame({'Age': fillup_age, 'Rate': fillup_rate})
+    CANCER_INC = pd.concat([fillup_df, CANCER_INC])
+    
     MORT.query('Sex == @sex & Race == @race & Cohort == @birthyear', inplace=True)
     SURV.query('Sex == @sex & Race == @race', inplace=True)
 
@@ -108,6 +122,7 @@ def select_cohort(birthyear, sex, race):
     ac_cdf = np.cumsum(MORT['Rate'].to_numpy())/100000
     # Creating the conditional CDF for all-cause mortality by age (doing this here to save runtime)
     ac_cdf = np.tile(ac_cdf, (END_AGE - START_AGE + 1, 1))  # (current age, future age)
+    
     for i in range(END_AGE - START_AGE + 1):
         ac_cdf[i, :] -= ac_cdf[i, i]  # Subtract the death at current age
     ac_cdf[:, -1] = 1.0  # Adding 1.0 to the end to ensure death at 100
@@ -127,14 +142,15 @@ def select_cohort(birthyear, sex, race):
 
     # For plotting and objective, we only compare years we have data
     min_age = max(1975 - birthyear, 0)
-    max_age = min(2018 - birthyear, 84)
+    min_age = 18
+    max_age = min(2018 - birthyear, 83)
 
     # Loading in cancer pdf, this is the thing that will be optimized over
     CANCER_PDF = 0.002 * np.ones(END_AGE - START_AGE + 1)  # starting from 0 incidence and using bias optimization
     CANCER_PDF[:35] = 0.0
 
     if LOAD_LATEST:
-        if len(CANCER_SITES) == 0: # 1 cancer site
+        if len(CANCER_SITES) == 1: # 1 cancer site
             # Check if there is a previous numpy file matching the same sex and race and cancer site
             list_of_files = glob.glob(f'{PATHS["calibration"]}*{COHORT_SEX}_{COHORT_RACE}_*{CANCER_SITES[0]}_*.npy')
             if len(list_of_files) == 0: # Check if there is a previous numpy file matching the same sex and cancer site

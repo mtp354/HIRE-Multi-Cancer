@@ -12,7 +12,7 @@ import pandas as pd
 def run_calibration(cohort):
     # Initialize cohort-specific parameters
     ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(cohort, c.COHORT_SEX, c.COHORT_RACE)
-    model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr)
+    model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr, len(c.CANCER_SITES))
     # Run calibration 
     best = simulated_annealing(model, CANCER_PDF, CANCER_INC, min_age, max_age)
     # Save as numpy file
@@ -105,7 +105,7 @@ if __name__ == '__main__':
             print(f"CANCERS = {c.CANCER_SITES}")
             # Initialize cohort-specific parameters
             ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(c.COHORT_YEAR, c.COHORT_SEX, c.COHORT_RACE)
-            model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr)
+            model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr, len(c.CANCER_SITES))
             # Run calibration for simplest verion of the model
             best = simulated_annealing(model, CANCER_PDF, CANCER_INC, min_age, max_age)
             # Save as numpy file, time_stamped
