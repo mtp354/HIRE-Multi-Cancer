@@ -108,13 +108,18 @@ def select_cohort(birthyear, sex, race):
 
     # CANCER_INC = CANCER_INC.iloc[:-4,:] # when you need to adjust maximum age
     # Add linear line from anchoring point to the age at first incidence data point
+<<<<<<< HEAD
     if list(CANCER_INC['Age'])[0]>18:
+=======
+    if list(CANCER_INC['Age'])[0] > 18:
+>>>>>>> 99f5de4838283d07e1600d901998f63a3a7f5e33
         fillup_age = list(range(18, list(CANCER_INC['Age'])[0]))
         slope = list(CANCER_INC['Rate'])[0]/(list(CANCER_INC['Age'])[0]-18)
         intercept = -18*slope
         fillup_rate = slope*np.array(fillup_age)+intercept
         fillup_df = pd.DataFrame({'Age': fillup_age, 'Rate': fillup_rate})
         CANCER_INC = pd.concat([fillup_df, CANCER_INC])
+<<<<<<< HEAD
         
         # For plotting and objective, we only compare years we have data
         min_age = 18
@@ -123,6 +128,8 @@ def select_cohort(birthyear, sex, race):
         # For plotting and objective, we only compare years we have data
         min_age = max(1975 - birthyear, 0)
         max_age = min(2018 - birthyear, 83)
+=======
+>>>>>>> 99f5de4838283d07e1600d901998f63a3a7f5e33
     
     MORT.query('Sex == @sex & Race == @race & Cohort == @birthyear', inplace=True)
     SURV.query('Sex == @sex & Race == @race', inplace=True)
