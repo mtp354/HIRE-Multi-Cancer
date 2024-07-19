@@ -25,3 +25,7 @@
 .card-body {
   position: relative;
 }
+
+#intro_text ~ #plot_incidence .user-select-none.svg-container {
+  display: none;
+}
