@@ -2,7 +2,7 @@
 Web app for visualizing the Multi-Cancer Model.
 
 # Setup
-- Install packages: ```pip install -r app/requirements.txt```
+- Install packages: ```pip install -r src/app/requirements.txt```
 - Install the shiny extension in VS Code.
 
 # Development Workflow
