@@ -1,6 +1,6 @@
 faicons
 shiny
 shinywidgets
+shinyswatch
 plotly
 pandas
-ridgeplot

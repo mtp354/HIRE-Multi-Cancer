@@ -10,9 +10,9 @@ import multiprocessing as mp
 import pandas as pd
 from pathlib import Path
 
-def run_model(cancer_sites: [""], cohort: int, sex: str, race: str, save=True):
+def run_model(cancer_sites: [""], cohort: int, sex: str, race: str, start_age = 0, end_age = 100, save=True):
     ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = (
-        c.select_cohort_app(cancer_sites, cohort, sex, race[3:], 0, 100)
+        c.select_cohort_app(cancer_sites, cohort, sex, race[3:], start_age, end_age)
     )
     model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr, len(cancer_sites))
     model.run(CANCER_PDF)
@@ -20,8 +20,9 @@ def run_model(cancer_sites: [""], cohort: int, sex: str, race: str, save=True):
     inc_df = inc_df.reset_index().rename(columns={'index': 'Age'})
 
     # Output model incidence
-    app_dir = Path(__file__).parent / "app/data/incidence"
-    inc_df.to_csv(f"{str(app_dir)}/{cohort}_{sex}_{race}_{cancer_sites[0]}.xlsx")
+    if save:
+        app_dir = Path(__file__).parent / "app/data/incidence"
+        inc_df.to_csv(f"{str(app_dir)}/{cohort}_{sex}_{race}_{cancer_sites[0]}.xlsx")
     return inc_df
 
 def run_calibration(cohort):
