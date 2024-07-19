@@ -1,4 +1,6 @@
 import plotly.express as px
+import plotly.graph_objects as go
+import pandas as pd
 import numpy as np
 
 # Load data and compute static values
@@ -66,7 +68,6 @@ app_ui = ui.page_sidebar(
                 class_="d-flex justify-content-center align-items-center flex-grow-1",
             ),
             output_widget("plot_incidence"),
-            ui.busy_indicators.use(spinners=True, pulse=True),
             full_screen=True,
         ),
     ),
@@ -78,6 +79,8 @@ app_ui = ui.page_sidebar(
 
 
 def server(input, output, session):
+    show_initial = reactive.value[bool](True)
+
     # @render.ui
     # def selected_params():
     #     return f"Site: {input.site()}, Race: {input.race()}, Sex: {input.sex()}, Birth Cohort: {input.cohort()}, Ages: {input.age_interval()[0]}-{input.age_interval()[1]}"
@@ -86,29 +89,37 @@ def server(input, output, session):
     @reactive.event(input.plot_incidence_btn)
     def remove_intro_text():
         # Hide intro text on button click
+        show_initial.set(False)
         ui.remove_ui("#intro_text")
 
     @render_plotly
-    @reactive.event(input.plot_incidence_btn)
+    # @reactive.event(input.plot_incidence_btn)
     def plot_incidence():
-        inc_df = main.run_model(
-            cancer_sites=[input.site()],
-            cohort=input.cohort(),
-            sex=input.sex(),
-            race=input.race(),
-            start_age=input.age_interval()[0],
-            end_age=input.age_interval()[1],
-            save=False,
-        )
-        inc_df = inc_df.iloc[:-1]
-        fig = px.line(
-            data_frame=inc_df,
-            x="Age",
-            y="Incidence per 100k",
-            title=f"{input.race()} {input.sex()} {input.cohort()}",
-        )
-        fig.update_layout(title_x=0.5)
-        return fig
+        input.plot_incidence_btn()
+
+        with reactive.isolate():
+            if show_initial():
+                return go.Figure(
+                go.Scatter(x=pd.Series(dtype=object), y=pd.Series(dtype=object), mode="markers")
+)
+            inc_df = main.run_model(
+                cancer_sites=[input.site()],
+                cohort=input.cohort(),
+                sex=input.sex(),
+                race=input.race(),
+                start_age=input.age_interval()[0],
+                end_age=input.age_interval()[1],
+                save=False,
+            )
+            inc_df = inc_df.iloc[:-1]
+            fig = px.line(
+                data_frame=inc_df,
+                x="Age",
+                y="Incidence per 100k",
+                title=f"{input.race()} {input.sex()} {input.cohort()}",
+            )
+            fig.update_layout(title_x=0.5)
+            return fig
 
     @reactive.effect
     @reactive.event(input.site)

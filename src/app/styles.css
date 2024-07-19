@@ -10,3 +10,18 @@
 /* .popover .btn-close {
   filter: var(--bs-btn-close-white-filter);
 } */
+
+#intro_text {
+  position: absolute;
+  margin-bottom: 0;
+  height: calc(100% - var(--bs-card-spacer-y));
+  width: 100%;
+  opacity: 0.8;
+  top: 0;
+  left: 0;
+  z-index: 2;
+}
+
+.card-body {
+  position: relative;
+}
