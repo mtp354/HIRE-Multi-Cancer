@@ -1,10 +1,11 @@
 # Defines all classes and functions used in the simulation
 import numpy as np
-import configs as c
+import src.configs as c
 from sklearn.metrics import mean_squared_error
 from csaps import csaps
 from tqdm import tqdm
 import random
+
 
 class Patient:
     def __init__(self, pid, num_cancers, starting_age=c.START_AGE):
@@ -20,10 +21,12 @@ class Patient:
         """
         self.pid = pid
         self.age = starting_age
-        self.current_state = 'Healthy'
-        self.history = {self.current_state:self.age}  # A dictionary to store the state and the age at entry to the state
+        self.current_state = "Healthy"
+        self.history = {
+            self.current_state: self.age
+        }  # A dictionary to store the state and the age at entry to the state
         self.num_cancers = num_cancers
-        self.cancer_type = None # only used for multiple cancers
+        self.cancer_type = None  # only used for multiple cancers
 
     def __repr__(self) -> str:
         """
@@ -41,92 +44,134 @@ class Patient:
 
     def run(self, cancer_pdf, ac_cdf, cancer_surv_arr):
         self.reset()
-        while 'Death' not in self.current_state:
-            if self.current_state == 'Healthy':
-                time_to_od = np.searchsorted(ac_cdf[self.age,:], np.random.rand()) - self.age
+        while "Death" not in self.current_state:
+            if self.current_state == "Healthy":
+                time_to_od = (
+                    np.searchsorted(ac_cdf[self.age, :], np.random.rand()) - self.age
+                )
                 # Cancer pdf is a list if there are multiple cancers being run
                 if self.num_cancers == 1:
-                    time_to_cancer = np.searchsorted(np.cumsum(cancer_pdf), np.random.rand())
+                    time_to_cancer = np.searchsorted(
+                        np.cumsum(cancer_pdf), np.random.rand()
+                    )
                     if time_to_cancer <= time_to_od:  # If cancer happens before death
-                        self.current_state = 'Cancer'
+                        self.current_state = "Cancer"
                         self.age += time_to_cancer
                     else:
-                        self.current_state = 'Other Death'
+                        self.current_state = "Other Death"
                         self.age += time_to_od
 
                 else:
                     # Create a numpy array to hold all the time_to_cancer for each cancer site
                     time_to_cancer_arr = np.zeros((self.num_cancers))
-                    for i in range(self.num_cancers): # in this case cancer_pdf is a list
-                        temp_time = np.searchsorted(np.cumsum(cancer_pdf[i]), np.random.rand())
+                    for i in range(
+                        self.num_cancers
+                    ):  # in this case cancer_pdf is a list
+                        temp_time = np.searchsorted(
+                            np.cumsum(cancer_pdf[i]), np.random.rand()
+                        )
                         time_to_cancer_arr[i] += temp_time
-                    
+
                     # Find the earliest age out of the all the cancer times
                     time_to_cancer = int(time_to_cancer_arr.min())
-                    i_time_to_cancer = time_to_cancer_arr.argmin() # index of min time
+                    i_time_to_cancer = time_to_cancer_arr.argmin()  # index of min time
                     if time_to_cancer <= time_to_od:  # If cancer happens before death
-                        self.current_state = 'Cancer'
+                        self.current_state = "Cancer"
                         self.cancer_type = c.CANCER_SITES[i_time_to_cancer]
                         self.age += time_to_cancer
                     else:
-                        self.current_state = 'Other Death'
+                        self.current_state = "Other Death"
                         self.age += time_to_od
 
                 self.history[self.current_state] = self.age
-            
-            if self.current_state == 'Cancer':
-                time_at_risk = min(10, c.END_AGE-self.age-1)
+
+            if self.current_state == "Cancer":
+                time_at_risk = min(10, c.END_AGE - self.age - 1)
 
                 # If running multiple cancers, make sure to select the correct cancer_surv_arrr
                 if self.num_cancers == 1:
-                    time_to_cd = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 0], np.random.rand())
-                    time_to_od = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 1], np.random.rand())
+                    time_to_cd = np.searchsorted(
+                        cancer_surv_arr[self.age - c.START_AGE, : 1 + time_at_risk, 0],
+                        np.random.rand(),
+                    )
+                    time_to_od = np.searchsorted(
+                        cancer_surv_arr[self.age - c.START_AGE, : 1 + time_at_risk, 1],
+                        np.random.rand(),
+                    )
                 else:
-                    time_to_cd = np.searchsorted(cancer_surv_arr[c.CANCER_SITES.index(self.cancer_type)][self.age - c.START_AGE, :1+time_at_risk, 0], np.random.rand())
-                    time_to_od = np.searchsorted(cancer_surv_arr[c.CANCER_SITES.index(self.cancer_type)][self.age - c.START_AGE, :1+time_at_risk, 1], np.random.rand())
+                    time_to_cd = np.searchsorted(
+                        cancer_surv_arr[c.CANCER_SITES.index(self.cancer_type)][
+                            self.age - c.START_AGE, : 1 + time_at_risk, 0
+                        ],
+                        np.random.rand(),
+                    )
+                    time_to_od = np.searchsorted(
+                        cancer_surv_arr[c.CANCER_SITES.index(self.cancer_type)][
+                            self.age - c.START_AGE, : 1 + time_at_risk, 1
+                        ],
+                        np.random.rand(),
+                    )
 
                 if time_to_od < time_to_cd:  # # If other death happens before cancer
-                    self.current_state = 'Other Death'
+                    self.current_state = "Other Death"
                     self.age += time_to_od
-                elif time_to_cd < time_at_risk:  # If cancer death happens before other death
-                    self.current_state = 'Cancer Death'
+                elif (
+                    time_to_cd < time_at_risk
+                ):  # If cancer death happens before other death
+                    self.current_state = "Cancer Death"
                     self.age += time_to_cd
                 else:
-                    self.current_state = 'Healthy'
+                    self.current_state = "Healthy"
                     self.age += time_at_risk
                 self.history[self.current_state] = self.age
         return self.history
 
     def reset(self):
         """
-        Reset the state of the object by setting history to contain the current age and 0, and 
+        Reset the state of the object by setting history to contain the current age and 0, and
         setting karma to a random value between 0 and 1.
         """
         self.age = c.START_AGE
-        self.current_state = 'Healthy'
-        self.history = {self.current_state:self.age}
-        self.cancer_type = None # only used for multiple cancers
+        self.current_state = "Healthy"
+        self.history = {self.current_state: self.age}
+        self.cancer_type = None  # only used for multiple cancers
+
 
 class DiscreteEventSimulation:
-    def __init__(self, ac_cdf, cancer_surv_arr, num_cancers, num_patients=c.NUM_PATIENTS, starting_age=c.START_AGE):
+    def __init__(
+        self,
+        ac_cdf,
+        cancer_surv_arr,
+        num_cancers,
+        num_patients=c.NUM_PATIENTS,
+        starting_age=c.START_AGE,
+    ):
         """
         Initializes the object with the given `cancer_cdf`.
         """
         self.num_patients = num_patients
-        self.patients = [Patient(pid, num_cancers, starting_age) for pid in range(self.num_patients)]
+        self.patients = [
+            Patient(pid, num_cancers, starting_age) for pid in range(self.num_patients)
+        ]
         self.log = []  # A log of all patient dictionaries
-        self.num_cancers = num_cancers # number of cancer sites we are running
+        self.num_cancers = num_cancers  # number of cancer sites we are running
 
-        self.cancerIncArr = np.zeros((c.END_AGE - c.START_AGE + 1))  # Initialize incidence array
-        self.acMortArr = np.zeros((c.END_AGE - c.START_AGE + 1))  # Initialize mortality array
-        self.cancerMortArr = np.zeros((c.END_AGE - c.START_AGE + 1))  # Initialize cancer mortality array
+        self.cancerIncArr = np.zeros(
+            (c.END_AGE - c.START_AGE + 1)
+        )  # Initialize incidence array
+        self.acMortArr = np.zeros(
+            (c.END_AGE - c.START_AGE + 1)
+        )  # Initialize mortality array
+        self.cancerMortArr = np.zeros(
+            (c.END_AGE - c.START_AGE + 1)
+        )  # Initialize cancer mortality array
         self.ac_cdf = ac_cdf
         self.cancer_surv_arr = cancer_surv_arr
 
         # Counts
-        self.cancerCountArr = np.zeros((c.END_AGE - c.START_AGE + 1)) # all cancers
+        self.cancerCountArr = np.zeros((c.END_AGE - c.START_AGE + 1))  # all cancers
         self.aliveCountArr = np.zeros((c.END_AGE - c.START_AGE + 1))
-    
+
     def run(self, cancer_pdf):
         """
         Runs the discrete event simulation for the given number of patients.
@@ -137,35 +182,53 @@ class DiscreteEventSimulation:
         random.seed(SEED)
         np.random.seed(SEED)
 
-        for patient in self.patients: # runs for each patient
-            patient_history = patient.run(cancer_pdf, self.ac_cdf, self.cancer_surv_arr)  # running patient
+        for patient in self.patients:  # runs for each patient
+            patient_history = patient.run(
+                cancer_pdf, self.ac_cdf, self.cancer_surv_arr
+            )  # running patient
             self.log.append(patient_history)  # recording to log
             try:
-                self.cancerIncArr[patient_history['Cancer'] - c.START_AGE] += 1  # Increment the incidence count for the corresponding age
-            except KeyError: 
+                self.cancerIncArr[
+                    patient_history["Cancer"] - c.START_AGE
+                ] += 1  # Increment the incidence count for the corresponding age
+            except KeyError:
                 pass
             try:
-                self.acMortArr[patient_history['Other Death'] - c.START_AGE] += 1  # Increment the mortality count for the corresponding age
-            except KeyError: 
+                self.acMortArr[
+                    patient_history["Other Death"] - c.START_AGE
+                ] += 1  # Increment the mortality count for the corresponding age
+            except KeyError:
                 pass
             try:
-                self.cancerMortArr[patient_history['Cancer Death'] - c.START_AGE] += 1  # Increment the cancer mortality count for the corresponding age
-            except KeyError: 
+                self.cancerMortArr[
+                    patient_history["Cancer Death"] - c.START_AGE
+                ] += 1  # Increment the cancer mortality count for the corresponding age
+            except KeyError:
                 pass
-        num_alive = self.num_patients - self.acMortArr.cumsum() - self.cancerMortArr.cumsum()  # Adjusting denominator based on number alive
+        num_alive = (
+            self.num_patients - self.acMortArr.cumsum() - self.cancerMortArr.cumsum()
+        )  # Adjusting denominator based on number alive
         self.aliveCountArr = num_alive
         self.cancerCountArr = self.cancerIncArr.copy()
-        self.cancerIncArr =100000*np.divide(self.cancerIncArr, num_alive+1)  # adding 1 to avoid NaNs
+        self.cancerIncArr = 100000 * np.divide(
+            self.cancerIncArr, num_alive + 1
+        )  # adding 1 to avoid NaNs
         return self
-    
+
     def reset(self):
         """
         Reset the object.
         """
         self.log = []
-        self.cancerIncArr = np.zeros((c.END_AGE - c.START_AGE + 1))  # Initialize incidence array
-        self.acMortArr = np.zeros((c.END_AGE - c.START_AGE + 1))  # Initialize mortality array
-        self.cancerMortArr = np.zeros((c.END_AGE - c.START_AGE + 1))  # Initialize cancer mortality array
+        self.cancerIncArr = np.zeros(
+            (c.END_AGE - c.START_AGE + 1)
+        )  # Initialize incidence array
+        self.acMortArr = np.zeros(
+            (c.END_AGE - c.START_AGE + 1)
+        )  # Initialize mortality array
+        self.cancerMortArr = np.zeros(
+            (c.END_AGE - c.START_AGE + 1)
+        )  # Initialize cancer mortality array
 
 
 # Defining Simulated Annealing functions
@@ -180,7 +243,8 @@ def objective(obs, min_age, max_age, exp):
     Returns:
     float: The mean squared error between the observed and expected values.
     """
-    return mean_squared_error(obs[min_age:max_age+1], exp)
+    return mean_squared_error(obs[min_age : max_age + 1], exp)
+
 
 def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE):
     """
@@ -192,14 +256,29 @@ def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE):
     - The new candidate array with values clipped between 0.0 and 1.0.
     """
     # print(mask_size)
-    mask =  np.random.random(candidate.shape) > mask_size # fraction of values to modify
+    mask = np.random.random(candidate.shape) > mask_size  # fraction of values to modify
     candidate[mask] += np.random.uniform(-step_size, step_size, mask.sum())
     candidate[:18] = 0.0  # anchoring
-    candidate = csaps(np.linspace(0, 100, 101), candidate, smooth=0.1)(np.linspace(0, 100, 101)).clip(0.0, 1.0)   # smoothing
+    candidate = csaps(np.linspace(0, 100, 101), candidate, smooth=0.1)(
+        np.linspace(0, 100, 101)
+    ).clip(
+        0.0, 1.0
+    )  # smoothing
     return candidate
 
-def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterations=c.NUM_ITERATIONS, 
-                        start_temp=c.START_TEMP, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE, verbose=c.VERBOSE):
+
+def simulated_annealing(
+    des,
+    cancer_pdf,
+    cancer_inc,
+    min_age,
+    max_age,
+    n_iterations=c.NUM_ITERATIONS,
+    start_temp=c.START_TEMP,
+    step_size=c.STEP_SIZE,
+    mask_size=c.MASK_SIZE,
+    verbose=c.VERBOSE,
+):
     """
     Simulated annealing algorithm to optimize a given cancer probability density function.
 
@@ -217,31 +296,37 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
     randVal_gen = np.random.RandomState(x)
     peak = 1
     best = np.copy(cancer_pdf)
-    best_eval = objective(des.run(best).cancerIncArr, min_age, max_age, cancer_inc)  # evaluate the initial point
+    best_eval = objective(
+        des.run(best).cancerIncArr, min_age, max_age, cancer_inc
+    )  # evaluate the initial point
     curr, curr_eval = best, best_eval  # current working solution
     for i in tqdm(range(n_iterations)):  # running algorithm
-        if i!=0 and i%50==0:
+        if i != 0 and i % 50 == 0:
             if peak == 0:
-                mask_size = mask_size+0.1
-                if mask_size>0.55:
+                mask_size = mask_size + 0.1
+                if mask_size > 0.55:
                     peak = 1
             else:
-                mask_size = mask_size-0.1
-                if mask_size<0.15:
+                mask_size = mask_size - 0.1
+                if mask_size < 0.15:
                     peak = 0
             print(mask_size)
         candidate = step(np.copy(curr), step_size, mask_size)
-        candidate_eval = objective(des.run(candidate).cancerIncArr, min_age, max_age, cancer_inc)
-        t = start_temp /(1+np.log(i+1)) # calculate temperature for current epoch
+        candidate_eval = objective(
+            des.run(candidate).cancerIncArr, min_age, max_age, cancer_inc
+        )
+        t = start_temp / (1 + np.log(i + 1))  # calculate temperature for current epoch
         if candidate_eval < best_eval:
-            best, best_eval = candidate, candidate_eval 
-        if verbose and i%100==0:
-            print(f"Iteration: {i}, Score = {best_eval}")  # report progress         
-        diff = candidate_eval - curr_eval  # difference between candidate and current point evaluation
+            best, best_eval = candidate, candidate_eval
+        if verbose and i % 100 == 0:
+            print(f"Iteration: {i}, Score = {best_eval}")  # report progress
+        diff = (
+            candidate_eval - curr_eval
+        )  # difference between candidate and current point evaluation
         metropolis = np.exp(-diff / t)  # calculate metropolis acceptance criterion
-        if diff < 0 or randVal_gen.random_sample() < metropolis:  # check if we should keep the new point
+        if (
+            diff < 0 or randVal_gen.random_sample() < metropolis
+        ):  # check if we should keep the new point
             curr, curr_eval = candidate, candidate_eval  # store the new current point
     print(best_eval)
     return best
-
-

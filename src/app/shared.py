@@ -1,5 +1,4 @@
 from pathlib import Path
 
-import pandas as pd
-
 app_dir = Path(__file__).parent
+src_dir = Path(__file__).parents[1] / "src"

@@ -3,11 +3,26 @@ import numpy as np
 from timeit import default_timer as timer
 from datetime import timedelta, datetime
 import matplotlib.pyplot as plt
-import configs as c
-from classes import *
+import src.configs as c
+from src.classes import *
 from tqdm import tqdm
 import multiprocessing as mp
 import pandas as pd
+from pathlib import Path
+
+def run_model(cancer_sites: [""], cohort: int, sex: str, race: str, save=True):
+    ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = (
+        c.select_cohort_app(cancer_sites, cohort, sex, race[3:], 0, 100)
+    )
+    model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr, len(cancer_sites))
+    model.run(CANCER_PDF)
+    inc_df = pd.DataFrame(model.cancerIncArr, columns=["Incidence per 100k"])
+    inc_df = inc_df.reset_index().rename(columns={'index': 'Age'})
+
+    # Output model incidence
+    app_dir = Path(__file__).parent / "app/data/incidence"
+    inc_df.to_csv(f"{str(app_dir)}/{cohort}_{sex}_{race}_{cancer_sites[0]}.xlsx")
+    return inc_df
 
 def run_calibration(cohort):
     # Initialize cohort-specific parameters

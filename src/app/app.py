@@ -1,7 +1,9 @@
 import plotly.express as px
+import numpy as np
 
 # Load data and compute static values
-from shared import app_dir
+from shared import app_dir, src_dir
+import src.main as main
 from shinywidgets import output_widget, render_plotly
 
 from shiny import App, reactive, render, ui
@@ -56,7 +58,12 @@ app_ui = ui.page_sidebar(
                 "Incidence",
                 class_="d-flex justify-content-between align-items-center",
             ),
-            ui.output_ui("selected_params"),
+            # ui.output_ui("selected_params"),
+            # ui.h6(
+            #     "Select parameters and click Plot Incidence to view plot",
+            #     id = "intro_text",
+            #     class_="d-flex justify-content-center align-items-center flex-grow-1",
+            # ),
             output_widget("plot_incidence"),
             full_screen=True,
         ),
@@ -68,13 +75,35 @@ app_ui = ui.page_sidebar(
 
 
 def server(input, output, session):
-    @render.ui
-    def selected_params():
-        return f"Site: {input.site()}, Race: {input.race()}, Sex: {input.sex()}, Birth Cohort: {input.cohort()}, Ages: {input.age_interval()[0]}-{input.age_interval()[1]}"
+    # @render.ui
+    # def selected_params():
+    #     return f"Site: {input.site()}, Race: {input.race()}, Sex: {input.sex()}, Birth Cohort: {input.cohort()}, Ages: {input.age_interval()[0]}-{input.age_interval()[1]}"
+    
+    # @reactive.effect
+    # @reactive.event(input.plot_incidence_btn)
+    # def remove_intro_text():
+    #     # Hide intro text on button click
+    #     ui.remove_ui("#intro_text")
 
     @render_plotly
+    # @reactive.event(input.plot_incidence_btn)
     def plot_incidence():
-        return
+        inc_df = main.run_model(
+            cancer_sites=[input.site()],
+            cohort=input.cohort(),
+            sex=input.sex(),
+            race=input.race(),
+            save=False,
+        )
+        inc_df = inc_df.iloc[:-1]
+        fig = px.line(
+            data_frame=inc_df,
+            x="Age",
+            y="Incidence per 100k",
+            title=f"{input.race()} {input.sex()} {input.cohort()}",
+        )
+        fig.update_layout(title_x=0.5)
+        return fig
 
     @reactive.effect
     @reactive.event(input.site)

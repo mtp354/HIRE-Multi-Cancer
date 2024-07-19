@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import glob
 import os
+from pathlib import Path
 
 # Aesthetic Preferences
 np.set_printoptions(precision=5, suppress=True)
@@ -73,15 +74,16 @@ if MULTI_COHORT_CALIBRATION and MODE != "calibrate":
 
 
 # Define input and output paths
+parent_dir = Path(__file__).parent.parent
 PATHS = {
-    'incidence': '../data/cancer_incidence/',
-    'mortality': '../data/mortality/',
-    'survival': '../data/cancer_survival/',
-    'calibration': '../outputs/calibration/',
-    'plots_calibration': '../outputs/calibration/plots/',
-    'sojourn_time': '../data/Sojourn Times/',
-    'plots': '../outputs/plots/',
-    'output': '../outputs/'
+    "incidence": str(parent_dir / "data/cancer_incidence") + "/",
+    "mortality": str(parent_dir / "data/mortality") + "/",
+    "survival": str(parent_dir / "data/cancer_survival") + "/",
+    "calibration": str(parent_dir / "outputs/calibration") + "/",
+    "plots_calibration": str(parent_dir / "outputs/calibration/plots") + "/",
+    "sojourn_time": str(parent_dir / "data/Sojourn Times") + "/",
+    "plots": str(parent_dir / "outputs/plots") + "/",
+    "output": str(parent_dir / "outputs") + "/",
 }
 
 # Selecting Cohort
@@ -269,6 +271,135 @@ def select_cohort(birthyear, sex, race):
             cancer_surv_arr_lst.append(cancer_surv_arr)
 
     if len(CANCER_SITES) == 1:
+        return ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC
+    else:
+        return ac_cdf, min_age, max_age, CANCER_PDF_lst, cancer_surv_arr_lst, CANCER_INC_lst
+    # If we are running the model for multiple cancers, each cancer is a separate element in a list
+
+# Selecting Cohort (accepts all needed variables, doesn't rely on variables in config file so it can be called from the shiny app)
+def select_cohort_app(cancer_sites, birthyear, sex, race, start_age = 0, end_age = 100):
+    # Load input data
+    CANCER_INC = pd.read_csv(f'{PATHS["incidence"]}Incidence.csv')
+    CANCER_INC = CANCER_INC[CANCER_INC['Site'].isin(cancer_sites)]  # keeping the cancers of interest
+
+    # Load in mortality data
+    MORT = pd.read_csv(f'{PATHS["mortality"]}Mortality.csv')
+    MORT = MORT[~MORT['Site'].isin(cancer_sites)]  # Removing the cancers of interest
+    MORT = MORT.groupby(['Cohort','Age','Sex','Race']).agg({'Rate':'sum'}).reset_index()  # Summing over the remaining sites
+
+    # Load in Survival data # TODO: no male breast survival data
+    SURV = pd.read_csv(f'{PATHS["survival"]}Survival.csv')  # This is the 10 year survival by cause
+    SURV = SURV[SURV["Site"].isin(cancer_sites)]  # keeping the cancers of interest
+
+    # Load in sojorn times
+    sojourn = pd.read_csv(PATHS['sojourn_time'] + 'Sojourn Estimates.csv')
+    sojourn = sojourn[sojourn["Site"].isin(cancer_sites)]
+
+    CANCER_INC.query('Sex == @sex & Race == @race & Cohort == @birthyear', inplace=True)
+
+    # CANCER_INC = CANCER_INC.iloc[:-4,:] # when you need to adjust maximum age
+    # Add linear line from anchoring point to the age at first incidence data point
+    if list(CANCER_INC['Age'])[0] > 18:
+        fillup_age = list(range(18, list(CANCER_INC['Age'])[0]))
+        slope = list(CANCER_INC['Rate'])[0]/(list(CANCER_INC['Age'])[0]-18)
+        intercept = -18*slope
+        fillup_rate = slope*np.array(fillup_age)+intercept
+        fillup_df = pd.DataFrame({'Age': fillup_age, 'Rate': fillup_rate})
+        CANCER_INC = pd.concat([fillup_df, CANCER_INC])
+
+        min_age = 18
+        max_age = min(2018 - birthyear, 83)
+    else:
+        # For plotting and objective, we only compare years we have data
+        min_age = max(1975 - birthyear, 0)
+        max_age = min(2018 - birthyear, 83)
+
+    MORT.query('Sex == @sex & Race == @race & Cohort == @birthyear', inplace=True)
+    SURV.query('Sex == @sex & Race == @race', inplace=True)
+
+    # Create the cdf all-cause mortality
+    ac_cdf = np.cumsum(MORT['Rate'].to_numpy())/100000
+    # Creating the conditional CDF for all-cause mortality by age (doing this here to save runtime)
+    ac_cdf = np.tile(ac_cdf, (end_age - start_age + 1, 1))  # (current age, future age)
+
+    for i in range(end_age - start_age + 1):
+        ac_cdf[i, :] -= ac_cdf[i, i]  # Subtract the death at current age
+    ac_cdf[:, -1] = 1.0  # Adding 1.0 to the end to ensure death at 100
+    ac_cdf = np.clip(ac_cdf, 0.0, 1.0)
+
+    CANCER_PDF_lst = []
+    for site in cancer_sites:
+        # Check if there is a previous numpy file matching the same sex and race and cancer site
+        list_of_files = glob.glob(f'{PATHS["calibration"]}*{sex}_{race}_*{site}_*.npy')
+        if len(list_of_files) == 0:
+            # Loading in cancer pdf, this is the thing that will be optimized over
+            CANCER_PDF = 0.002 * np.ones(end_age - start_age + 1)  # starting from 0 incidence and using bias optimization
+            CANCER_PDF[:35] = 0.0
+        else:
+            # Look at all the unique cohort years in the file names
+            all_cohort_years = []
+            for file in list_of_files:
+                year = file.split('_')[2] # grabs the cohort year
+                if int(year) not in all_cohort_years:
+                    all_cohort_years.append(int(year))
+            # Sort ascending years
+            all_cohort_years.sort()
+            # Get the max calibrated cohort year that is just below or equal to the COHORT_YEAR
+            max_year = 0
+            for year in all_cohort_years:
+                if year <= birthyear:
+                    max_year = year
+            final_list = []
+            for file in list_of_files:
+                if f'_{max_year}_' in file:
+                    final_list.append(file)
+            # Read the latest file
+            latest_file = max(final_list, key=os.path.getctime)
+            CANCER_PDF = np.load(latest_file)
+            CANCER_PDF_lst.append(CANCER_PDF)
+
+    # Load all cancer incidence target data
+    if len(cancer_sites) == 1: # only 1 cancer site
+        CANCER_INC = CANCER_INC['Rate'].to_numpy()
+    else: # multiple cancer sites
+        # Need to separate each cancer incidence
+        # Add numpy array for each cancer site into a lst
+        CANCER_INC_lst = []
+        for i in range(len(cancer_sites)):
+            temp = CANCER_INC[CANCER_INC['Site']==cancer_sites[i]]
+            tempArr = temp['Rate'].to_numpy()
+            CANCER_INC_lst.append(tempArr)
+
+    # Loading in cancer survival data
+    if len(cancer_sites) == 1: # 1 cancer site
+        SURV = SURV[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
+        SURV = 1 - SURV**(1/10)  # Converting to annual probability of death (assuming constant rate)
+
+        # Converting into probability of death at each follow up year
+        cancer_surv_arr = np.zeros((end_age - start_age + 1, 10, 2))
+
+        for i in range(10):
+            cancer_surv_arr[:,i,0] = 1-(1-SURV[:,0])**(i+1)  # Cancer death
+            cancer_surv_arr[:,i,1] = 1-(1-SURV[:,1])**(i+1)  # Other death
+            # This is now an an array of shape (100, 10, 2), that represents the cdf of cancer death and other death at each follow up year
+    else: # multiple cancer sites
+        cancer_surv_arr_lst = []
+        for i in range(len(cancer_sites)):
+            temp = SURV[SURV['Site']==cancer_sites[i]]
+            temp = temp[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
+            temp = 1 - temp**(1/10)  # Converting to annual probability of death (assuming constant rate)
+
+            # Converting into probability of death at each follow up year
+            cancer_surv_arr = np.zeros((end_age - start_age + 1, 10, 2))
+
+            for i in range(10):
+                cancer_surv_arr[:,i,0] = 1-(1-temp[:,0])**(i+1)  # Cancer death
+                cancer_surv_arr[:,i,1] = 1-(1-temp[:,1])**(i+1)  # Other death
+                # This is now an an array of shape (100, 10, 2), that represents the cdf of cancer death and other death at each follow up year
+
+            cancer_surv_arr_lst.append(cancer_surv_arr)
+
+    if len(cancer_sites) == 1:
         return ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC
     else:
         return ac_cdf, min_age, max_age, CANCER_PDF_lst, cancer_surv_arr_lst, CANCER_INC_lst
