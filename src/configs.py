@@ -3,25 +3,27 @@ import numpy as np
 import pandas as pd
 import glob
 import os
+import random
 
 # Aesthetic Preferences
 np.set_printoptions(precision=5, suppress=True)
 
-MODE = 'calibrate'
+MODE = 'visualize'
 # Options:
 # - calibrate: run simulated annealing for cancer incidence (one site)
 # - visualize: plot incidence and mortality, output cancer incidence, cancer count, alive count
 # - cancer_dist: plot cancer pdf and cdf
 SAVE_RESULTS = True  # whether to save results to file
+SOJOURN_TIME = False
 
 # Define cohort characteristics
-COHORT_YEAR = 1965  # birth year of the cohort
+COHORT_YEAR = 1957  # birth year of the cohort
 START_AGE = 0
 END_AGE = 100
 COHORT_SEX = 'Male'  # Female/Male
 COHORT_RACE = 'White'  # Black/White
 NUM_PATIENTS = 100_000
-CANCER_SITES = ['Lung']
+CANCER_SITES = ['Gastric']
 # Full list:
 # MP 'Bladder' 'Breast' 'Cervical' 'Colorectal' 'Esophageal' 
 # JP 'Gastric' 'Lung' 'Prostate' 'Uterine'
@@ -48,7 +50,7 @@ START_TEMP = 10
 STEP_SIZE = 0.001
 VERBOSE = True
 MASK_SIZE = 0.5 # value between 0 and 1, the fraction of values to modify each step
-LOAD_LATEST = False # If true, load the latest cancer_pdf from file as starting point
+LOAD_LATEST = True# If true, load the latest cancer_pdf from file as starting point
 # LOAD_LATEST is used to get the most recently calibrated numpy file to run the model
 # First checks if there is a previous file for same sex/race/cancer site, then same sex/cancer site,
 # then same race/cancer site, then same cancer site
@@ -84,6 +86,16 @@ PATHS = {
     'output': '../outputs/'
 }
 
+SEED = 42
+random.seed(SEED)
+np.random.seed(SEED)
+# Load in sojorn times
+sojourn = pd.read_csv(PATHS['sojourn_time'] + 'Sojourn Estimates.csv')
+sj_cancer_sites = {}
+for i in range(len(CANCER_SITES)):
+    sojourn = sojourn[sojourn['Site'].isin([CANCER_SITES[i]])]
+    sj_cancer_sites[i] = np.random.triangular(sojourn['Lower'], sojourn['Sojourn Time'], sojourn['Upper'], NUM_PATIENTS).astype(int)
+
 # Selecting Cohort
 def select_cohort(birthyear, sex, race):
     # Load input data
@@ -99,12 +111,18 @@ def select_cohort(birthyear, sex, race):
     SURV = pd.read_csv(f'{PATHS["survival"]}Survival.csv')  # This is the 10 year survival by cause
     SURV = SURV[SURV['Site'].isin(CANCER_SITES)]  # keeping the cancers of interest
 
-    # Load in sojorn times
-    sojourn = pd.read_csv(PATHS['sojourn_time'] + 'Sojourn Estimates.csv')
-    sojourn = sojourn[sojourn['Site'].isin(CANCER_SITES)]
-
     CANCER_INC.query('Sex == @sex & Race == @race & Cohort == @birthyear', inplace=True)
     
+    # Impute SEER data using earlier cohorts upto age 83
+    if CANCER_INC['Age'].max() < 83:
+        i=1
+        while CANCER_INC['Age'].max()<83:
+            cohort_year = COHORT_YEAR-i
+            cancer_inc = pd.read_csv(f'{PATHS["incidence"]}Incidence.csv')
+            cancer_inc = cancer_inc[cancer_inc['Site'].isin(CANCER_SITES)]  # keeping the cancers of interest
+            cancer_inc.query('Sex == @COHORT_SEX & Race == @COHORT_RACE & Cohort == @cohort_year', inplace=True)
+            CANCER_INC = pd.concat([CANCER_INC, cancer_inc.iloc[-1,:].to_frame().T])
+            i = i+1
 
     # CANCER_INC = CANCER_INC.iloc[:-4,:] # when you need to adjust maximum age
     # Add linear line from anchoring point to the age at first incidence data point
@@ -117,11 +135,12 @@ def select_cohort(birthyear, sex, race):
         CANCER_INC = pd.concat([fillup_df, CANCER_INC])
 
         min_age = 18
-        max_age = min(2018 - birthyear, 83)
+        # max_age = min(2018 - birthyear, 83)
     else:
         # For plotting and objective, we only compare years we have data
         min_age = max(1975 - birthyear, 0)
-        max_age = min(2018 - birthyear, 83)
+        # max_age = min(2018 - birthyear, 83)
+    max_age = 83 # max_age needs to be 83 as we are imputing SEER data to age 83
     
     MORT.query('Sex == @sex & Race == @race & Cohort == @birthyear', inplace=True)
     SURV.query('Sex == @sex & Race == @race', inplace=True)
