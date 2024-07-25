@@ -8,11 +8,13 @@ from classes import *
 from tqdm import tqdm
 import multiprocessing as mp
 import pandas as pd
+import pickle
 
 def run_calibration(cohort):
     # Initialize cohort-specific parameters
     ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC = c.select_cohort(cohort, c.COHORT_SEX, c.COHORT_RACE)
     model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr, len(c.CANCER_SITES))
+
     # Run calibration 
     best = simulated_annealing(model, CANCER_PDF, CANCER_INC, min_age, max_age)
     # Save as numpy file
@@ -46,6 +48,9 @@ if __name__ == '__main__':
             df['Cancer_Count'] = model.cancerCountArr
             df['Alive_Count'] = model.aliveCountArr
             df.to_excel(c.PATHS['output'] + f"{c.COHORT_YEAR}_{c.COHORT_SEX}_{c.COHORT_RACE}_{c.CANCER_SITES[0]}_SUMMARY.xlsx")
+            
+            with open(c.PATHS['output'] + f"{c.COHORT_YEAR}_{c.COHORT_SEX}_{c.COHORT_RACE}_{c.CANCER_SITES[0]}_LOG.pickle", 'wb') as handle:
+                pickle.dump(model.log, handle)
 
             # Limit the plot's y-axis to just above the highest SEER incidence
             plt.plot(np.arange(c.START_AGE, c.END_AGE), model.run(CANCER_PDF).cancerIncArr[:-1], label='Model', color='blue')
