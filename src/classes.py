@@ -263,7 +263,7 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
                 mask_size = mask_size-0.1
                 if mask_size<0.15:
                     peak = 0
-            print(mask_size)
+            # print(mask_size)
         candidate = step(np.copy(curr), step_size, mask_size)
         candidate_eval = objective(des.run(candidate).cancerIncArr, min_age, max_age, cancer_inc)
         t = start_temp /(1+np.log(i+1)) # calculate temperature for current epoch
