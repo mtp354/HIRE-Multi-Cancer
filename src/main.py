@@ -73,6 +73,10 @@ if __name__ == '__main__':
             df['Cancer_Count'] = model.cancerCountArr
             df['Alive_Count'] = model.aliveCountArr
             df.to_excel(c.PATHS['output'] + f"{c.COHORT_YEAR}_{c.COHORT_SEX}_{c.COHORT_RACE}_{str(c.CANCER_SITES)}_SUMMARY.xlsx")
+            
+            cancer_sites_str = '_'.join(c.CANCER_SITES)
+            with open(c.PATHS['output'] + f"{c.COHORT_YEAR}_{c.COHORT_SEX}_{c.COHORT_RACE}_{cancer_sites_str}_LOG.pickle", 'wb') as handle:
+                pickle.dump(model.log, handle)
 
             plt.legend(loc='upper left')
             plt.xlabel('Age')

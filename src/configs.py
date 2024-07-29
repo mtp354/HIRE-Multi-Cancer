@@ -8,22 +8,21 @@ import random
 # Aesthetic Preferences
 np.set_printoptions(precision=5, suppress=True)
 
-MODE = 'calibrate'
+MODE = 'visualize'
 # Options:
 # - calibrate: run simulated annealing for cancer incidence (one site)
 # - visualize: plot incidence and mortality, output cancer incidence, cancer count, alive count
 # - cancer_dist: plot cancer pdf and cdf
 SAVE_RESULTS = True  # whether to save results to file
 SOJOURN_TIME = False
-
 # Define cohort characteristics
-COHORT_YEAR = 1956  # birth year of the cohort
+COHORT_YEAR = 1957  # birth year of the cohort
 START_AGE = 0
 END_AGE = 100
 COHORT_SEX = 'Male'  # Female/Male
 COHORT_RACE = 'White'  # Black/White
 NUM_PATIENTS = 100_000
-CANCER_SITES = ['Pancreas']
+CANCER_SITES = ['Colorectal']
 # Full list:
 # MP 'Bladder' 'Breast' 'Cervical' 'Colorectal' 'Esophageal' 
 # JP 'Gastric' 'Lung' 'Prostate' 'Uterine'
@@ -50,7 +49,7 @@ START_TEMP = 10
 STEP_SIZE = 0.001 #0.001
 VERBOSE = True
 MASK_SIZE = 0.5 # value between 0 and 1, the fraction of values to modify each step
-LOAD_LATEST = False# If true, load the latest cancer_pdf from file as starting point
+LOAD_LATEST = True# If true, load the latest cancer_pdf from file as starting point
 # LOAD_LATEST is used to get the most recently calibrated numpy file to run the model
 # First checks if there is a previous file for same sex/race/cancer site, then same sex/cancer site,
 # then same race/cancer site, then same cancer site
@@ -63,7 +62,7 @@ LOAD_LATEST = False# If true, load the latest cancer_pdf from file as starting p
 # You MUST do multi-calibration in ascending order FIRST before doing descending order
 # You CANNOT start multi-cohort calibration in descending order first
 # When you do reverse calibration, remember that the LAST_COHORT looks at the next +1 birth year cohort year
-MULTI_COHORT_CALIBRATION = True
+MULTI_COHORT_CALIBRATION = False
 REVERSE_MULTI_COHORT_CALIBRATION = False # determines whether you want to reverse the cohort year range in calibration
 if MULTI_COHORT_CALIBRATION:
     FIRST_COHORT = 1935
@@ -86,6 +85,7 @@ PATHS = {
     'output': '../outputs/'
 }
 
+
 SEED = 42
 random.seed(SEED)
 np.random.seed(SEED)
@@ -93,8 +93,10 @@ np.random.seed(SEED)
 sojourn = pd.read_csv(PATHS['sojourn_time'] + 'Sojourn Estimates.csv')
 sj_cancer_sites = {}
 for i in range(len(CANCER_SITES)):
-    sojourn = sojourn[sojourn['Site'].isin([CANCER_SITES[i]])]
-    sj_cancer_sites[i] = np.random.triangular(sojourn['Lower'], sojourn['Sojourn Time'], sojourn['Upper'], NUM_PATIENTS).astype(int)
+    s = sojourn[sojourn['Site'].isin([CANCER_SITES[i]])]
+    sj_cancer_sites[i] = np.random.triangular(s['Lower'], s['Sojourn Time'], s['Upper'], NUM_PATIENTS).astype(int)
+
+random_numbers_array = np.random.rand(NUM_PATIENTS, 10)
 
 # Selecting Cohort
 def select_cohort(birthyear, sex, race):
