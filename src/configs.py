@@ -15,6 +15,7 @@ MODE = 'calibrate'
 # - cancer_dist: plot cancer pdf and cdf
 SAVE_RESULTS = True  # whether to save results to file
 SOJOURN_TIME = False
+SMOOTH_CALIBRATION_PLOTS = True # whether to save plots from each calibration iteration
 
 # Define cohort characteristics
 COHORT_YEAR = 1956  # birth year of the cohort
