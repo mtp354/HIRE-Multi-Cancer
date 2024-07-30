@@ -289,7 +289,7 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
     modelIncid = des.run(best).cancerIncArr
     # Get integer of largest value of modelIncid
     maxVal = modelIncid.max()
-    if maxVal >= 200: # if over 200 (really large peak), replace the value to better smoothing
+    if maxVal >= 300: # if over 300 (really large peak), replace the value to better smoothing
         i_max = np.argmax(modelIncid)
         # Replace value with middle of previous and next model value
         newVal = (modelIncid[i_max - 1] + modelIncid[i_max + 1])/2
@@ -313,7 +313,7 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
         newmodelIncid = des.run(candidate).cancerIncArr
         # Get integer of largest value of modelIncid
         maxVal = newmodelIncid.max()
-        if maxVal >= 200:
+        if maxVal >= 300:
             i_max = np.argmax(newmodelIncid)
             # Replace value with middle of previous and next model value
             newVal = (newmodelIncid[i_max - 1] + newmodelIncid[i_max + 1])/2

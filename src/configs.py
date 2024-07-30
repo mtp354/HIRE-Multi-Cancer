@@ -97,7 +97,7 @@ for i in range(len(CANCER_SITES)):
     s = sojourn[sojourn['Site'].isin([CANCER_SITES[i]])]
     sj_cancer_sites[i] = np.random.triangular(s['Lower'], s['Sojourn Time'], s['Upper'], NUM_PATIENTS).astype(int)
 
-random_numbers_array = np.random.rand(NUM_PATIENTS, 10)
+random_numbers_array = np.random.rand(NUM_PATIENTS, 20)
 
 # Selecting Cohort
 def select_cohort(birthyear, sex, race):
