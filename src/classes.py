@@ -6,6 +6,8 @@ from csaps import csaps
 from tqdm import tqdm
 import random
 import pickle
+import matplotlib.pyplot as plt
+import time
         
 class Patient:
     def __init__(self, pid, num_cancers, starting_age=c.START_AGE, rn_pid = None, detected_early = 0):
@@ -126,9 +128,7 @@ class Patient:
                 else:
                     self.current_state = 'Healthy'
                     self.age += time_at_risk
-                self.history.append({self.current_state: self.age})
-                
-            next_state = 'Known'
+                self.history.append({self.current_state: self.age})     
         return self.history
 
     def reset(self):
@@ -192,7 +192,7 @@ class DiscreteEventSimulation:
         random.seed(SEED)
         np.random.seed(SEED)
 
-        for patient in tqdm(self.patients): # runs for each patient
+        for patient in self.patients: # runs for each patient
             patient_history = patient.run(cancer_pdf, self.ac_cdf, self.cancer_surv_arr)  # running patient
             self.log.append(patient_history)  # recording to log
             try:
@@ -243,7 +243,7 @@ def objective(obs, min_age, max_age, exp):
     """
     return mean_squared_error(obs[min_age:max_age+1], exp)
 
-def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE):
+def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE, n_th_iteration = 0):
     """
     Generate a new candidate by adding random noise to the input candidate array, and then clipping the values to be within the range of 0.0 and 1.0.
     Parameters:
@@ -252,12 +252,14 @@ def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE):
     Returns:
     - The new candidate array with values clipped between 0.0 and 1.0.
     """
-    # print(mask_size)
-    mask =  np.random.random(candidate.shape) > mask_size # fraction of values to modify
-    candidate[mask] += np.random.uniform(-step_size, step_size, mask.sum())
+    x=c.rand4step[n_th_iteration]
+    randVal_gen = np.random.RandomState(x)
+    mask =  randVal_gen.random_sample(candidate.shape) > mask_size # fraction of values to modify
+    perturbations = (randVal_gen.random_sample(mask.sum()) * 2 - 1) * step_size
+    candidate[mask] += perturbations
     candidate[:18] = 0.0  # anchoring
     candidate[83:100] = 0.0
-    candidate = csaps(np.linspace(0, 100, 101), candidate, smooth=0.01)(np.linspace(0, 100, 101)).clip(0.0, 1.0)   # smoothing 0.0001
+    candidate = csaps(np.linspace(0, 100, 101), candidate, smooth=0.0001)(np.linspace(0, 100, 101)).clip(0.0, 1.0)   # smoothing 0.0001
     return candidate
 
 def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterations=c.NUM_ITERATIONS, 
@@ -291,14 +293,23 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
                 mask_size = mask_size-0.1
                 if mask_size<0.15:
                     peak = 0
-            # print(mask_size)
-        candidate = step(np.copy(curr), step_size, mask_size)
+        candidate = step(np.copy(curr), step_size, mask_size, n_th_iteration = i)
         candidate_eval = objective(des.run(candidate).cancerIncArr, min_age, max_age, cancer_inc)
+        
+        ## Check if candidate is changing every iteration
+        # plt.plot(des.run(candidate).cancerIncArr, color = 'r')
+        # plt.plot(cancer_inc, color = 'k')
+        # plt.title(str(i)+'th iteration'+'_'+str(sum(candidate)))
+        # plt.legend(['sim', 'SEER'])
+        # plt.xlim([0,80])
+        # plt.ylim([0, max(cancer_inc)+10])
+        # plt.show()
         t = start_temp /(1+np.log(i+1)) # calculate temperature for current epoch
         if candidate_eval < best_eval:
             best, best_eval = candidate, candidate_eval 
         if verbose and i%100==0:
-            print(f"Iteration: {i}, Score = {best_eval}")  # report progress         
+            print(f"Iteration: {i}, Score = {best_eval}")  # report progress 
+            # print('ccc:', sum(candidate))        
         diff = candidate_eval - curr_eval  # difference between candidate and current point evaluation
         metropolis = np.exp(-diff / t)  # calculate metropolis acceptance criterion
         if diff < 0 or randVal_gen.random_sample() < metropolis:  # check if we should keep the new point
