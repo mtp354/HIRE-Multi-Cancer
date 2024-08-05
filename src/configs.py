@@ -15,6 +15,7 @@ MODE = 'calibrate'
 # - cancer_dist: plot cancer pdf and cdf
 SAVE_RESULTS = True  # whether to save results to file
 SOJOURN_TIME = False
+GOF_SMOOTHING = True # whether to add smoothing to model incidence during calibration
 # Define cohort characteristics
 COHORT_YEAR = 1935  # birth year of the cohort
 START_AGE = 0
