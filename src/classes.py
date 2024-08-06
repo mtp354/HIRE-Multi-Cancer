@@ -8,6 +8,8 @@ import random
 import pickle
 import matplotlib.pyplot as plt
 import time
+from scipy.signal import savgol_filter
+import matplotlib.pyplot as plt
         
 class Patient:
     def __init__(self, pid, num_cancers, starting_age=c.START_AGE, rn_pid = None, detected_early = 0):
@@ -262,6 +264,11 @@ def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE, n_th_iteration
     candidate = csaps(np.linspace(0, 100, 101), candidate, smooth=0.0001)(np.linspace(0, 100, 101)).clip(0.0, 1.0)   # smoothing 0.0001
     return candidate
 
+def smooth_incidence(model_incid, window_length, polynomial):
+    # Smooth model incidence
+    smoothed_incid = savgol_filter(model_incid, window_length, polynomial)
+    return smoothed_incid
+
 def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterations=c.NUM_ITERATIONS, 
                         start_temp=c.START_TEMP, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE, verbose=c.VERBOSE):
     """
@@ -281,8 +288,26 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
     randVal_gen = np.random.RandomState(x)
     peak = 1
     best = np.copy(cancer_pdf)
-    best_eval = objective(des.run(best).cancerIncArr, min_age, max_age, cancer_inc)  # evaluate the initial point
+
+    if c.GOF_SMOOTHING:
+        # Smooth initial solution
+        modelIncid = des.run(best).cancerIncArr
+        # Get integer of largest value of modelIncid
+        maxVal = modelIncid.max()
+        if maxVal >= 300: # if over 300 (really large peak), replace the value to better smoothing
+            i_max = np.argmax(modelIncid)
+            # Replace value with middle of previous and next model value
+            newVal = (modelIncid[i_max - 1] + modelIncid[i_max + 1])/2
+            modelIncid[i_max] = newVal
+        # Smooth initial model incidence
+        smoothmodelIncid = smooth_incidence(modelIncid, 21, 3) # use smoothed incidence to calculate gof
+        best_eval = objective(smoothmodelIncid, min_age, max_age, cancer_inc)  # evaluate the initial point, this gives us the gof
+    else:
+        best = np.copy(cancer_pdf)
+        best_eval = objective(des.run(best).cancerIncArr, min_age, max_age, cancer_inc)  # evaluate the initial point
+    
     curr, curr_eval = best, best_eval  # current working solution
+
     for i in tqdm(range(n_iterations)):  # running algorithm
         if i!=0 and i%50==0:
             if peak == 0:
@@ -294,8 +319,35 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
                 if mask_size<0.15:
                     peak = 0
         candidate = step(np.copy(curr), step_size, mask_size, n_th_iteration = i)
-        candidate_eval = objective(des.run(candidate).cancerIncArr, min_age, max_age, cancer_inc)
+
+        if c.GOF_SMOOTHING:
+            # Smooth model incidence
+            newmodelIncid = des.run(candidate).cancerIncArr
+            # Get integer of largest value of modelIncid
+            maxVal = newmodelIncid.max()
+            if maxVal >= 300:
+                i_max = np.argmax(newmodelIncid)
+                # Replace value with middle of previous and next model value
+                newVal = (newmodelIncid[i_max - 1] + newmodelIncid[i_max + 1])/2
+                newmodelIncid[i_max] = newVal
+            # Smooth new incidence
+            smoothnewmodelIncid = smooth_incidence(newmodelIncid, 21, 3)
+            candidate_eval = objective(smoothnewmodelIncid, min_age, max_age, cancer_inc)
+        else:
+            candidate_eval = objective(des.run(candidate).cancerIncArr, min_age, max_age, cancer_inc)
         
+
+        if c.GOF_SMOOTHING and i%100 == 0:
+            # Limit the plot's y-axis to just above the highest SEER incidence
+            plt.plot(np.arange(c.START_AGE, c.END_AGE + 1), modelIncid, label='Model', color='blue')
+            plt.plot(np.arange(c.START_AGE, c.END_AGE + 1), smoothmodelIncid, label='Smooth', color='green', alpha=0.5)
+            plt.legend(loc='upper left')
+            plt.ylim(0, cancer_inc.max() + 50)
+            plt.xlabel('Age')
+            plt.ylabel('Incidence (per 100k)')
+            plt.savefig(c.PATHS['plots_calibration'] + f"{c.COHORT_SEX}_{c.COHORT_RACE}_{c.CANCER_SITES[0]}_{i}.png", bbox_inches='tight')
+            plt.clf()
+
         ## Check if candidate is changing every iteration
         # plt.plot(des.run(candidate).cancerIncArr, color = 'r')
         # plt.plot(cancer_inc, color = 'k')
