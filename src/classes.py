@@ -54,7 +54,7 @@ class Patient:
         r=0    
         while 'Death' not in self.current_state and self.age<c.END_AGE:
             if self.current_state == 'Healthy':
-                time_to_od = np.searchsorted(ac_cdf[self.age,:], self.random_numbers[r]) - self.age
+                time_to_od = np.searchsorted(ac_cdf[self.age - c.START_AGE,:], self.random_numbers[r]) - self.age
                 r = r+1
 
                 if self.num_cancers == 1:
@@ -252,12 +252,19 @@ def objective(obs, min_age, max_age, exp):
 
     Parameters:
     obs (array-like): The observed values.
+    min_age (int): min age we have seer data for
+    max_age (int): max age we have seer data for
     exp (array-like, optional): The expected values, default is c.CANCER_INC.
 
     Returns:
     float: The mean squared error between the observed and expected values.
     """
-    return mean_squared_error(obs[min_age:max_age+1], exp)
+    # Calculate gof for age range intersection.
+    # Ex: (start age, end age) = (20, 100). (min_age, max_age) = (18, 83). Want to calculate fit for (20, 83).
+    start = max(min_age, c.START_AGE)
+    end = min(max_age, c.END_AGE)
+    return mean_squared_error(obs[start - c.START_AGE: end + 1 - c.START_AGE],
+                              exp[start - min_age : end + 1 - min_age])
 
 def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE, n_th_iteration = 0):
     """
@@ -273,9 +280,11 @@ def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE, n_th_iteration
     mask =  randVal_gen.random_sample(candidate.shape) > mask_size # fraction of values to modify
     perturbations = (randVal_gen.random_sample(mask.sum()) * 2 - 1) * step_size
     candidate[mask] += perturbations
-    candidate[:18] = 0.0  # anchoring
-    candidate[83:100] = 0.0
-    candidate = csaps(np.linspace(0, 100, 101), candidate, smooth=0.0001)(np.linspace(0, 100, 101)).clip(0.0, 1.0)   # smoothing 0.0001
+    total_ages = c.END_AGE - c.START_AGE + 1
+    candidate[max(0, 0 - c.START_AGE):min(total_ages, max(0, 18 - c.START_AGE + 1))] = 0.0  # anchoring
+    candidate[max(0, 83 - c.START_AGE):min(total_ages, max(0, 100 - c.START_AGE + 1))] = 0.0
+    ages_linspace = np.linspace(c.START_AGE, c.END_AGE, total_ages)
+    candidate = csaps(ages_linspace, candidate, smooth=0.0001)(ages_linspace).clip(0.0, 1.0)   # smoothing 0.0001
     return candidate
 
 def smooth_incidence(model_incid, window_length, polynomial):

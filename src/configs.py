@@ -8,23 +8,23 @@ import random
 # Aesthetic Preferences
 np.set_printoptions(precision=5, suppress=True)
 
-MODE = 'visualize'
+MODE = 'calibrate'
 # Options:
 # - calibrate: run simulated annealing for cancer incidence (one site)
 # - visualize: plot incidence and mortality, output cancer incidence, cancer count, alive count
 # - cancer_dist: plot cancer pdf and cdf
 SAVE_RESULTS = True  # whether to save results to file
-SOJOURN_TIME = True
-GOF_SMOOTHING = False # whether to add smoothing to model incidence during calibration
+SOJOURN_TIME = False
+GOF_SMOOTHING = True # whether to add smoothing to model incidence during calibration
 # Define cohort characteristics
-COHORT_YEAR = 1960  # birth year of the cohort
-START_AGE = 0
+COHORT_YEAR = 1935  # birth year of the cohort
+START_AGE = 20
 END_AGE = 100
 COHORT_SEX = 'Female'  # Female/Male
 COHORT_RACE = 'Black'  # Black/White
 NUM_PATIENTS = 100_000
-CANCER_SITES = ['Lung','Colorectal','Pancreas', 'Breast']
-CANCER_SITES_ED = ['Lung', 'Colorectal', 'Pancreas', 'Breast'] # cancer types that have screening methods for the early detection 
+CANCER_SITES = ['Lung']
+CANCER_SITES_ED = [] # cancer types that have screening methods for the early detection 
 # CANCER_SITES_ED = []
 
 # Full list:
@@ -45,19 +45,15 @@ if len(CANCER_SITES) > 1 and MODE == 'cancer_dist':
     raise Exception("You can only run cancer_dist for one cancer site")
 
 # Define multiprocessing parameters
-NUM_PROCESSES = 10
+NUM_PROCESSES = 12
 
 # Define simulated annealing parameter
-NUM_ITERATIONS = 3_000
+NUM_ITERATIONS = 2_000
 START_TEMP = 10
-STEP_SIZE = 0.2 #0.001
+STEP_SIZE = 0.01 #0.001
 VERBOSE = True
 MASK_SIZE = 0.5 # value between 0 and 1, the fraction of values to modify each step
-<<<<<<< Updated upstream
 LOAD_LATEST = False # If true, load the latest cancer_pdf from file as starting point
-=======
-LOAD_LATEST = True# If true, load the latest cancer_pdf from file as starting point
->>>>>>> Stashed changes
 # LOAD_LATEST is used to get the most recently calibrated numpy file to run the model
 # First checks if there is a previous file for same sex/race/cancer site, then same sex/cancer site,
 # then same race/cancer site, then same cancer site
@@ -70,7 +66,7 @@ LOAD_LATEST = True# If true, load the latest cancer_pdf from file as starting po
 # You MUST do multi-calibration in ascending order FIRST before doing descending order
 # You CANNOT start multi-cohort calibration in descending order first
 # When you do reverse calibration, remember that the LAST_COHORT looks at the next +1 birth year cohort year
-MULTI_COHORT_CALIBRATION = False
+MULTI_COHORT_CALIBRATION = True
 REVERSE_MULTI_COHORT_CALIBRATION = False # determines whether you want to reverse the cohort year range in calibration
 if MULTI_COHORT_CALIBRATION:
     FIRST_COHORT = 1935
@@ -187,6 +183,7 @@ def select_cohort(birthyear, sex, race):
     # Loading in cancer pdf, this is the thing that will be optimized over
     CANCER_PDF = 0.002 * np.ones(END_AGE - START_AGE + 1)  # starting from 0 incidence and using bias optimization
     CANCER_PDF[:35] = 0.0
+    CANCER_PDF_lst = []
 
     if LOAD_LATEST:
         if len(CANCER_SITES) == 1: # 1 cancer site
@@ -277,10 +274,10 @@ def select_cohort(birthyear, sex, race):
 
     # Loading in cancer survival data
     if len(CANCER_SITES) == 1: # 1 cancer site
-        SURV = SURV[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
+        SURV = SURV[['Cancer_Death','Other_Death']].to_numpy()[START_AGE:]  # 10 year survival
         SURV = 1 - SURV**(1/10)  # Converting to annual probability of death (assuming constant rate)
 
-        SURV_ed = SURV_ed[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
+        SURV_ed = SURV_ed[['Cancer_Death','Other_Death']].to_numpy()[START_AGE:]  # 10 year survival
         SURV_ed = 1 - SURV_ed**(1/10)  # Converting to annual probability of death (assuming constant rate)
         
         # Converting into probability of death at each follow up year
@@ -297,7 +294,7 @@ def select_cohort(birthyear, sex, race):
     else: # multiple cancer sites
         cancer_surv_arr_lst = []
         for i in range(len(CANCER_SITES)):
-            temp = SURV[SURV['Site']==CANCER_SITES[i]]
+            temp = SURV[SURV['Site']==CANCER_SITES[i]][START_AGE:]
             temp = temp[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
             temp = 1 - temp**(1/10)  # Converting to annual probability of death (assuming constant rate)
 
@@ -313,7 +310,7 @@ def select_cohort(birthyear, sex, race):
             
         cancer_surv_arr_lst_ed = []
         for i in range(len(CANCER_SITES_ED)):
-            temp = SURV_ed[SURV_ed['Site']==CANCER_SITES_ED[i]]
+            temp = SURV_ed[SURV_ed['Site']==CANCER_SITES_ED[i]][START_AGE:]
             temp = temp[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
             temp = 1 - temp**(1/10)  # Converting to annual probability of death (assuming constant rate)
 
