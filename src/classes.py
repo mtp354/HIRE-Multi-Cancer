@@ -288,7 +288,6 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
     randVal_gen = np.random.RandomState(x)
     peak = 1
     best = np.copy(cancer_pdf)
-
     if c.GOF_SMOOTHING:
         # Smooth initial solution
         modelIncid = des.run(best).cancerIncArr
@@ -301,6 +300,10 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
             modelIncid[i_max] = newVal
         # Smooth initial model incidence
         smoothmodelIncid = smooth_incidence(modelIncid, 21, 3) # use smoothed incidence to calculate gof
+        # Remove any negative values in smoothmodelIncid
+        for j in range(len(smoothmodelIncid)):
+            if smoothmodelIncid[j] < 0:
+                smoothmodelIncid[j] = 0
         best_eval = objective(smoothmodelIncid, min_age, max_age, cancer_inc)  # evaluate the initial point, this gives us the gof
     else:
         best = np.copy(cancer_pdf)
@@ -332,21 +335,12 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
                 newmodelIncid[i_max] = newVal
             # Smooth new incidence
             smoothnewmodelIncid = smooth_incidence(newmodelIncid, 21, 3)
+            for j in range(len(smoothnewmodelIncid)):
+                if smoothnewmodelIncid[j] < 0:
+                    smoothnewmodelIncid[j] = 0
             candidate_eval = objective(smoothnewmodelIncid, min_age, max_age, cancer_inc)
         else:
             candidate_eval = objective(des.run(candidate).cancerIncArr, min_age, max_age, cancer_inc)
-        
-
-        if c.GOF_SMOOTHING and i%100 == 0:
-            # Limit the plot's y-axis to just above the highest SEER incidence
-            plt.plot(np.arange(c.START_AGE, c.END_AGE + 1), modelIncid, label='Model', color='blue')
-            plt.plot(np.arange(c.START_AGE, c.END_AGE + 1), smoothmodelIncid, label='Smooth', color='green', alpha=0.5)
-            plt.legend(loc='upper left')
-            plt.ylim(0, cancer_inc.max() + 50)
-            plt.xlabel('Age')
-            plt.ylabel('Incidence (per 100k)')
-            plt.savefig(c.PATHS['plots_calibration'] + f"{c.COHORT_SEX}_{c.COHORT_RACE}_{c.CANCER_SITES[0]}_{i}.png", bbox_inches='tight')
-            plt.clf()
 
         ## Check if candidate is changing every iteration
         # plt.plot(des.run(candidate).cancerIncArr, color = 'r')
@@ -366,6 +360,18 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
         metropolis = np.exp(-diff / t)  # calculate metropolis acceptance criterion
         if diff < 0 or randVal_gen.random_sample() < metropolis:  # check if we should keep the new point
             curr, curr_eval = candidate, candidate_eval  # store the new current point
+
+            if c.GOF_SMOOTHING:
+                # Limit the plot's y-axis to just above the highest SEER incidence
+                plt.plot(np.arange(c.START_AGE, c.END_AGE + 1), newmodelIncid, label='Model', color='blue')
+                plt.plot(np.arange(c.START_AGE, c.END_AGE + 1), smoothnewmodelIncid, label='Smooth', color='green', alpha=0.5)
+                plt.legend(loc='upper left')
+                plt.ylim(0, cancer_inc.max() + 50)
+                plt.xlabel('Age')
+                plt.ylabel('Incidence (per 100k)')
+                plt.savefig(c.PATHS['plots_calibration'] + f"{c.COHORT_SEX}_{c.COHORT_RACE}_{c.CANCER_SITES[0]}_{i}.png", bbox_inches='tight')
+                plt.clf()
+
     print(best_eval)
     return best
 
