@@ -8,22 +8,24 @@ import random
 # Aesthetic Preferences
 np.set_printoptions(precision=5, suppress=True)
 
-MODE = 'calibrate'
+MODE = 'visualize'
 # Options:
 # - calibrate: run simulated annealing for cancer incidence (one site)
 # - visualize: plot incidence and mortality, output cancer incidence, cancer count, alive count
 # - cancer_dist: plot cancer pdf and cdf
 SAVE_RESULTS = True  # whether to save results to file
-SOJOURN_TIME = False
-GOF_SMOOTHING = True # whether to add smoothing to model incidence during calibration
+SOJOURN_TIME = True
+GOF_SMOOTHING = False # whether to add smoothing to model incidence during calibration
 # Define cohort characteristics
-COHORT_YEAR = 1935  # birth year of the cohort
+COHORT_YEAR = 1960  # birth year of the cohort
 START_AGE = 0
 END_AGE = 100
-COHORT_SEX = 'Male'  # Female/Male
-COHORT_RACE = 'White'  # Black/White
+COHORT_SEX = 'Female'  # Female/Male
+COHORT_RACE = 'Black'  # Black/White
 NUM_PATIENTS = 100_000
-CANCER_SITES = ['Lung']
+CANCER_SITES = ['Lung','Colorectal','Pancreas', 'Breast']
+CANCER_SITES_ED = ['Lung', 'Colorectal', 'Pancreas', 'Breast'] # cancer types that have screening methods for the early detection 
+# CANCER_SITES_ED = []
 
 # Full list:
 # MP 'Bladder' 'Breast' 'Cervical' 'Colorectal' 'Esophageal' 
@@ -46,12 +48,16 @@ if len(CANCER_SITES) > 1 and MODE == 'cancer_dist':
 NUM_PROCESSES = 10
 
 # Define simulated annealing parameter
-NUM_ITERATIONS = 2_000
+NUM_ITERATIONS = 3_000
 START_TEMP = 10
-STEP_SIZE = 0.01 #0.001
+STEP_SIZE = 0.2 #0.001
 VERBOSE = True
 MASK_SIZE = 0.5 # value between 0 and 1, the fraction of values to modify each step
+<<<<<<< Updated upstream
 LOAD_LATEST = False # If true, load the latest cancer_pdf from file as starting point
+=======
+LOAD_LATEST = True# If true, load the latest cancer_pdf from file as starting point
+>>>>>>> Stashed changes
 # LOAD_LATEST is used to get the most recently calibrated numpy file to run the model
 # First checks if there is a previous file for same sex/race/cancer site, then same sex/cancer site,
 # then same race/cancer site, then same cancer site
@@ -64,7 +70,7 @@ LOAD_LATEST = False # If true, load the latest cancer_pdf from file as starting 
 # You MUST do multi-calibration in ascending order FIRST before doing descending order
 # You CANNOT start multi-cohort calibration in descending order first
 # When you do reverse calibration, remember that the LAST_COHORT looks at the next +1 birth year cohort year
-MULTI_COHORT_CALIBRATION = True
+MULTI_COHORT_CALIBRATION = False
 REVERSE_MULTI_COHORT_CALIBRATION = False # determines whether you want to reverse the cohort year range in calibration
 if MULTI_COHORT_CALIBRATION:
     FIRST_COHORT = 1935
@@ -98,7 +104,7 @@ for i in range(len(CANCER_SITES)):
     s = sojourn[sojourn['Site'].isin([CANCER_SITES[i]])]
     sj_cancer_sites[i] = np.random.triangular(s['Lower'], s['Sojourn Time'], s['Upper'], NUM_PATIENTS).astype(int)
 
-random_numbers_array = np.random.rand(NUM_PATIENTS, 20)
+random_numbers_array = np.random.rand(NUM_PATIENTS, 30)
 rand4step = np.random.randint(0, 100000, size=NUM_ITERATIONS)
 
 # Selecting Cohort
@@ -115,6 +121,10 @@ def select_cohort(birthyear, sex, race):
     # Load in Survival data # TODO: no male breast survival data
     SURV = pd.read_csv(f'{PATHS["survival"]}Survival.csv')  # This is the 10 year survival by cause
     SURV = SURV[SURV['Site'].isin(CANCER_SITES)]  # keeping the cancers of interest
+    
+    # Load in Survival_Localized
+    SURV_ed = pd.read_csv(f'{PATHS["survival"]}Survival_Localized.csv')  # This is the 10 year survival by cause
+    SURV_ed = SURV_ed[SURV_ed['Site'].isin(CANCER_SITES_ED)]  # keeping the cancers of interest
 
     CANCER_INC.query('Sex == @sex & Race == @race & Cohort == @birthyear', inplace=True)
     
@@ -150,6 +160,7 @@ def select_cohort(birthyear, sex, race):
     
     MORT.query('Sex == @sex & Race == @race & Cohort == @birthyear', inplace=True)
     SURV.query('Sex == @sex & Race == @race', inplace=True)
+    SURV_ed.query('Sex == @sex & Race == @race', inplace=True)
 
     # Create the cdf all-cause mortality
     ac_cdf = np.cumsum(MORT['Rate'].to_numpy())/100000
@@ -269,12 +280,19 @@ def select_cohort(birthyear, sex, race):
         SURV = SURV[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
         SURV = 1 - SURV**(1/10)  # Converting to annual probability of death (assuming constant rate)
 
+        SURV_ed = SURV_ed[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
+        SURV_ed = 1 - SURV_ed**(1/10)  # Converting to annual probability of death (assuming constant rate)
+        
         # Converting into probability of death at each follow up year
         cancer_surv_arr = np.zeros((END_AGE - START_AGE + 1, 10, 2))
+        cancer_surv_arr_ed = np.zeros((END_AGE - START_AGE + 1, 10, 2))
 
         for i in range(10):
             cancer_surv_arr[:,i,0] = 1-(1-SURV[:,0])**(i+1)  # Cancer death
             cancer_surv_arr[:,i,1] = 1-(1-SURV[:,1])**(i+1)  # Other death
+            
+            cancer_surv_arr_ed[:,i,0] = 1-(1-SURV[:,0])**(i+1)  # Cancer death
+            cancer_surv_arr_ed[:,i,1] = 1-(1-SURV[:,1])**(i+1)  # Other death
             # This is now an an array of shape (100, 10, 2), that represents the cdf of cancer death and other death at each follow up year
     else: # multiple cancer sites
         cancer_surv_arr_lst = []
@@ -292,9 +310,25 @@ def select_cohort(birthyear, sex, race):
                 # This is now an an array of shape (100, 10, 2), that represents the cdf of cancer death and other death at each follow up year
 
             cancer_surv_arr_lst.append(cancer_surv_arr)
+            
+        cancer_surv_arr_lst_ed = []
+        for i in range(len(CANCER_SITES_ED)):
+            temp = SURV_ed[SURV_ed['Site']==CANCER_SITES_ED[i]]
+            temp = temp[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
+            temp = 1 - temp**(1/10)  # Converting to annual probability of death (assuming constant rate)
+
+            # Converting into probability of death at each follow up year
+            cancer_surv_arr_ed = np.zeros((END_AGE - START_AGE + 1, 10, 2))
+
+            for i in range(10):
+                cancer_surv_arr_ed[:,i,0] = 1-(1-temp[:,0])**(i+1)  # Cancer death
+                cancer_surv_arr_ed[:,i,1] = 1-(1-temp[:,1])**(i+1)  # Other death
+                # This is now an an array of shape (100, 10, 2), that represents the cdf of cancer death and other death at each follow up year
+
+            cancer_surv_arr_lst_ed.append(cancer_surv_arr_ed)
 
     if len(CANCER_SITES) == 1:
-        return ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, CANCER_INC
+        return ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, cancer_surv_arr_ed, CANCER_INC
     else:
-        return ac_cdf, min_age, max_age, CANCER_PDF_lst, cancer_surv_arr_lst, CANCER_INC_lst
+        return ac_cdf, min_age, max_age, CANCER_PDF_lst, cancer_surv_arr_lst, cancer_surv_arr_lst_ed, CANCER_INC_lst
     # If we are running the model for multiple cancers, each cancer is a separate element in a list

@@ -46,7 +46,7 @@ class Patient:
         """
         return f"Patient:{self.pid}, history:{self.history})"
     
-    def run(self, cancer_pdf, ac_cdf, cancer_surv_arr):
+    def run(self, cancer_pdf, ac_cdf, cancer_surv_arr, cancer_surv_arr_ed):
         self.reset()  
         
         # store random numbers
@@ -89,15 +89,15 @@ class Patient:
                         self.age += time_to_od
                         
 
-                if self.detected_early==1 and self.current_state == 'Cancer':
+                if self.detected_early==1 and self.current_state == 'Cancer' and self.cancer_type in c.CANCER_SITES_ED:
                     if self.num_cancers == 1:
                         self.age -= c.sj_cancer_sites[0][self.pid]
                     else:
                         self.age -= c.sj_cancer_sites[i_time_to_cancer][self.pid]
                     self.age = max(0, self.age)
                     self.history.append({self.current_state:(self.age, self.cancer_type)})
-                    self.current_state = 'Healthy'
-                    self.history.append({self.current_state:self.age})
+                    self.current_state = 'Cancer'
+                    # self.history.append({self.current_state:self.age})
                 else:
                     if self.current_state == 'Cancer' and self.num_cancers == 1:
                         self.history.append({self.current_state:(self.age, self.cancer_type, c.sj_cancer_sites[0][self.pid])})
@@ -112,15 +112,27 @@ class Patient:
                 # If running multiple cancers, make sure to select the correct cancer_surv_array
 
                 if self.num_cancers == 1:
-                    time_to_cd = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 0], self.random_numbers[r])
-                    r = r+1
-                    time_to_od = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 1], self.random_numbers[r])
-                    r = r+1
+                    if self.detected_early==1 and self.cancer_type in c.CANCER_SITES_ED:
+                        time_to_cd = np.searchsorted(cancer_surv_arr_ed[self.age - c.START_AGE, :1+time_at_risk, 0], self.random_numbers[r])
+                        r = r+1
+                        time_to_od = np.searchsorted(cancer_surv_arr_ed[self.age - c.START_AGE, :1+time_at_risk, 1], self.random_numbers[r])
+                        r = r+1
+                    else:
+                        time_to_cd = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 0], self.random_numbers[r])
+                        r = r+1
+                        time_to_od = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 1], self.random_numbers[r])
+                        r = r+1
                 else:
-                    time_to_cd = np.searchsorted(cancer_surv_arr[c.CANCER_SITES.index(self.cancer_type)][self.age - c.START_AGE, :1+time_at_risk, 0], self.random_numbers[r])
-                    r = r+1
-                    time_to_od = np.searchsorted(cancer_surv_arr[c.CANCER_SITES.index(self.cancer_type)][self.age - c.START_AGE, :1+time_at_risk, 1], self.random_numbers[r])                        
-                    r = r+1
+                    if self.detected_early==1 and self.cancer_type in c.CANCER_SITES_ED:
+                        time_to_cd = np.searchsorted(cancer_surv_arr_ed[c.CANCER_SITES.index(self.cancer_type)][self.age - c.START_AGE, :1+time_at_risk, 0], self.random_numbers[r])
+                        r = r+1
+                        time_to_od = np.searchsorted(cancer_surv_arr_ed[c.CANCER_SITES.index(self.cancer_type)][self.age - c.START_AGE, :1+time_at_risk, 1], self.random_numbers[r])                        
+                        r = r+1                        
+                    else:
+                        time_to_cd = np.searchsorted(cancer_surv_arr[c.CANCER_SITES.index(self.cancer_type)][self.age - c.START_AGE, :1+time_at_risk, 0], self.random_numbers[r])
+                        r = r+1
+                        time_to_od = np.searchsorted(cancer_surv_arr[c.CANCER_SITES.index(self.cancer_type)][self.age - c.START_AGE, :1+time_at_risk, 1], self.random_numbers[r])                        
+                        r = r+1
                 if time_to_od < time_to_cd:  # # If other death happens before cancer
                     self.current_state = 'Other Death'
                     self.age += time_to_od
@@ -144,7 +156,7 @@ class Patient:
         self.cancer_type = None # only used for multiple cancers
 
 class DiscreteEventSimulation:
-    def __init__(self, ac_cdf, cancer_surv_arr, num_cancers, num_patients=c.NUM_PATIENTS, starting_age=c.START_AGE, sojourn_time = c.SOJOURN_TIME):
+    def __init__(self, ac_cdf, cancer_surv_arr, cancer_surv_arr_ed, num_cancers, num_patients=c.NUM_PATIENTS, starting_age=c.START_AGE, sojourn_time = c.SOJOURN_TIME):
         """
         Initializes the object with the given `cancer_cdf`.
         """
@@ -173,6 +185,7 @@ class DiscreteEventSimulation:
         self.cancerMortArr = np.zeros((c.END_AGE - c.START_AGE + 1))  # Initialize cancer mortality array
         self.ac_cdf = ac_cdf
         self.cancer_surv_arr = cancer_surv_arr
+        self.cancer_surv_arr_ed = cancer_surv_arr_ed
 
         # Counts
         self.cancerCountArr = np.zeros((c.END_AGE - c.START_AGE + 1)) # all cancers
@@ -195,8 +208,9 @@ class DiscreteEventSimulation:
         np.random.seed(SEED)
 
         for patient in self.patients: # runs for each patient
-            patient_history = patient.run(cancer_pdf, self.ac_cdf, self.cancer_surv_arr)  # running patient
+            patient_history = patient.run(cancer_pdf, self.ac_cdf, self.cancer_surv_arr, self.cancer_surv_arr_ed)  # running patient
             self.log.append(patient_history)  # recording to log
+            # print(patient_history)
             try:
                 # if len([1 for h in patient_history if list(h.keys())[0]=='Cancer'])>1: # if value of key "Cancer" is tuple
                 age_at_cancer = [h['Cancer'][0] for h in patient_history if list(h.keys())[0]=='Cancer']
