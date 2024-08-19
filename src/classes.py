@@ -342,7 +342,7 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
         if maxVal >= 300: # if over 300 (really large peak), replace the value to better smoothing
             i_max = np.argmax(modelIncid)
             # Replace value with middle of previous and next model value
-            newVal = (modelIncid[i_max - 1] + modelIncid[i_max + 1])/2
+            newVal = (modelIncid[max(i_max - 1, 0)] + modelIncid[min(i_max + 1, len(modelIncid) - 1)])/2
             modelIncid[i_max] = newVal
         # Smooth initial model incidence
         smoothmodelIncid = smooth_incidence(modelIncid, 21, 3) # use smoothed incidence to calculate gof
@@ -377,7 +377,7 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
             if maxVal >= 300:
                 i_max = np.argmax(newmodelIncid)
                 # Replace value with middle of previous and next model value
-                newVal = (newmodelIncid[i_max - 1] + newmodelIncid[i_max + 1])/2
+                newVal = (newmodelIncid[max(i_max - 1, 0)] + newmodelIncid[min(i_max + 1, len(newmodelIncid) - 1)])/2
                 newmodelIncid[i_max] = newVal
             # Smooth new incidence
             smoothnewmodelIncid = smooth_incidence(newmodelIncid, 21, 3)
