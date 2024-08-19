@@ -18,12 +18,12 @@ SOJOURN_TIME = False
 GOF_SMOOTHING = True # whether to add smoothing to model incidence during calibration
 # Define cohort characteristics
 COHORT_YEAR = 1935  # birth year of the cohort
-START_AGE = 20
+START_AGE = 0
 END_AGE = 100
 COHORT_SEX = 'Female'  # Female/Male
 COHORT_RACE = 'Black'  # Black/White
 NUM_PATIENTS = 100_000
-CANCER_SITES = ['Lung']
+CANCER_SITES = ['Colorectal']
 CANCER_SITES_ED = [] # cancer types that have screening methods for the early detection 
 # CANCER_SITES_ED = []
 
@@ -45,7 +45,7 @@ if len(CANCER_SITES) > 1 and MODE == 'cancer_dist':
     raise Exception("You can only run cancer_dist for one cancer site")
 
 # Define multiprocessing parameters
-NUM_PROCESSES = 12
+NUM_PROCESSES = 26
 
 # Define simulated annealing parameter
 NUM_ITERATIONS = 2_000
@@ -82,8 +82,8 @@ PATHS = {
     'incidence': '../data/cancer_incidence/',
     'mortality': '../data/mortality/',
     'survival': '../data/cancer_survival/',
-    'calibration': '../outputs/calibration/',
-    'plots_calibration': '../outputs/calibration/plots/',
+    'calibration': '../outputs/calibration_smoothing_08132024/',
+    'plots_calibration': '../outputs/calibration_smoothing_08132024/plots/',
     'sojourn_time': '../data/Sojourn Times/',
     'plots': '../outputs/plots/',
     'output': '../outputs/'
@@ -104,7 +104,10 @@ random_numbers_array = np.random.rand(NUM_PATIENTS, 30)
 rand4step = np.random.randint(0, 100000, size=NUM_ITERATIONS)
 
 # Selecting Cohort
-def select_cohort(birthyear, sex, race):
+def select_cohort(birthyear, cancer_sites=CANCER_SITES, sex=COHORT_SEX, race=COHORT_RACE):
+    CANCER_SITES = cancer_sites
+    COHORT_SEX = sex
+    COHORT_RACE = race
     # Load input data
     CANCER_INC = pd.read_csv(f'{PATHS["incidence"]}Incidence.csv')
     CANCER_INC = CANCER_INC[CANCER_INC['Site'].isin(CANCER_SITES)]  # keeping the cancers of interest

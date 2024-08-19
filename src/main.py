@@ -9,15 +9,19 @@ from tqdm import tqdm
 import multiprocessing as mp
 import pandas as pd
 import pickle
+from functools import partial
+import os
 
-
-def run_calibration(cohort):
+def run_calibration(cohort, cancer_sites, sex, race):
+    c.CANCER_SITES = cancer_sites
+    c.COHORT_SEX = sex
+    c.COHORT_RACE = race
     # Initialize cohort-specific parameters
-    ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, cancer_surv_arr_ed, CANCER_INC = c.select_cohort(cohort, c.COHORT_SEX, c.COHORT_RACE)
+    ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, cancer_surv_arr_ed, CANCER_INC = c.select_cohort(cohort, cancer_sites, sex, race)
     model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr, cancer_surv_arr_ed, len(c.CANCER_SITES))
 
     # Run calibration 
-    best = simulated_annealing(model, CANCER_PDF, CANCER_INC, min_age, max_age)
+    best = simulated_annealing(model, CANCER_PDF, CANCER_INC, min_age, max_age, cancer_sites, sex, race)
     # Save as numpy file
     if c.SAVE_RESULTS:
         np.save(c.PATHS['calibration'] + f"{c.COHORT_SEX}_{c.COHORT_RACE}_{cohort}_{c.CANCER_SITES[0]}_{datetime.now():%Y-%m-%d_%H-%M-%S}.npy", best)
@@ -29,11 +33,17 @@ def run_calibration(cohort):
         plt.ylabel('Incidence (per 100k)')
         plt.ylim(0, CANCER_INC.max() + 30)
         plt.title(f"Cancer Incidence by Age for Birthyear={cohort}, Sex={c.COHORT_SEX}, Race={c.COHORT_RACE}, Site={c.CANCER_SITES[0]}")
-        plt.savefig(c.PATHS['plots_calibration'] + f"{c.COHORT_SEX}_{c.COHORT_RACE}_{cohort}_{c.CANCER_SITES[0]}.png", bbox_inches='tight')
+        filename = c.PATHS['plots_calibration'] + f"{c.CANCER_SITES[0]}_{c.COHORT_RACE}_{c.COHORT_SEX}/" + f"{c.COHORT_SEX}_{c.COHORT_RACE}_{cohort}_{c.CANCER_SITES[0]}.png"
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        plt.savefig(filename, bbox_inches='tight')
         plt.clf()
     except Exception as e:
         print(f"An error occurred while plotting or saving the figure: {e}")
-if __name__ == '__main__':
+        
+def main(cancer_sites=c.CANCER_SITES, sex=c.COHORT_SEX, race=c.COHORT_RACE):
+    c.CANCER_SITES = cancer_sites
+    c.COHORT_SEX = sex
+    c.COHORT_RACE = race
     start = timer()
     if c.MODE == 'visualize':
         # Run simplest verion of the model: creates plot of model incidence vs SEER incidence
@@ -120,8 +130,9 @@ if __name__ == '__main__':
         if c.MULTI_COHORT_CALIBRATION:
             print(f"RUNNING MULTI-COHORT CALIBRATION: FIRST COHORT = {c.FIRST_COHORT}, LAST COHORT = {c.LAST_COHORT}, SEX = {c.COHORT_SEX}, RACE = {c.COHORT_RACE}")
             print(f"CANCERS = {c.CANCER_SITES}")
+            calibrated_function = partial(run_calibration, cancer_sites=cancer_sites, sex=sex, race=race)
             with mp.Pool(processes=c.NUM_PROCESSES) as pool:
-                results = list(tqdm(pool.imap(run_calibration, range(c.FIRST_COHORT, c.LAST_COHORT + 1)), total=c.LAST_COHORT - c.FIRST_COHORT + 1))
+                results = list(tqdm(pool.imap(calibrated_function, range(c.FIRST_COHORT, c.LAST_COHORT + 1)), total=c.LAST_COHORT - c.FIRST_COHORT + 1))
 
         else:
             print(f"RUNNING CALIBRATION: COHORT = {c.COHORT_YEAR}, SEX = {c.COHORT_SEX}, RACE = {c.COHORT_RACE}")
@@ -148,5 +159,5 @@ if __name__ == '__main__':
     end = timer()
     print(f'total time: {timedelta(seconds=end-start)}')
 
-
-
+if __name__ == '__main__':
+    main()

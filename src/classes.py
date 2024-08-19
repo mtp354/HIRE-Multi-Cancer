@@ -315,7 +315,7 @@ def smooth_incidence(model_incid, window_length, polynomial):
     smoothed_incid = savgol_filter(model_incid, window_length, polynomial)
     return smoothed_incid
 
-def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterations=c.NUM_ITERATIONS, 
+def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, cancer_sites, sex, race, n_iterations=c.NUM_ITERATIONS, 
                         start_temp=c.START_TEMP, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE, verbose=c.VERBOSE):
     """
     Simulated annealing algorithm to optimize a given cancer probability density function.
@@ -415,7 +415,7 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
                 plt.ylim(0, cancer_inc.max() + 50)
                 plt.xlabel('Age')
                 plt.ylabel('Incidence (per 100k)')
-                plt.savefig(c.PATHS['plots_calibration'] + f"{c.COHORT_SEX}_{c.COHORT_RACE}_{c.CANCER_SITES[0]}_{i}.png", bbox_inches='tight')
+                plt.savefig(c.PATHS['plots_calibration'] + f"{sex}_{race}_{cancer_sites[0]}_{i}.png", bbox_inches='tight')
                 plt.clf()
 
     print(best_eval)
