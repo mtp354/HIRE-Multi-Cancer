@@ -8,29 +8,73 @@ import random
 # Aesthetic Preferences
 np.set_printoptions(precision=5, suppress=True)
 
-MODE = 'calibrate'
-# Options:
-# - calibrate: run simulated annealing for cancer incidence (one site)
-# - visualize: plot incidence and mortality, output cancer incidence, cancer count, alive count
-# - cancer_dist: plot cancer pdf and cdf
-SAVE_RESULTS = True  # whether to save results to file
-SOJOURN_TIME = False
-GOF_SMOOTHING = True # whether to add smoothing to model incidence during calibration
-# Define cohort characteristics
-COHORT_YEAR = 1935  # birth year of the cohort
-START_AGE = 20
-END_AGE = 100
-COHORT_SEX = 'Female'  # Female/Male
-COHORT_RACE = 'Black'  # Black/White
-NUM_PATIENTS = 100_000
-CANCER_SITES = ['Lung']
-CANCER_SITES_ED = [] # cancer types that have screening methods for the early detection 
+#########################
+import argparse
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+parser = argparse.ArgumentParser(description='Configure the simulation parameters.')
+
+parser.add_argument('--mode', type=str, default='visualize', help='Mode of operation')
+parser.add_argument('--save_results', type=str2bool, default=True, help='Whether to save results')
+parser.add_argument('--sojourn_time', type=str2bool, default=False, help='Whether to use sojourn time')
+parser.add_argument('--gof_smoothing', type=str2bool, default=False, help='Whether to use GOF smoothing')
+parser.add_argument('--cohort_year', type=int, default=1960, help='Cohort birth year')
+parser.add_argument('--start_age', type=int, default=0, help='Start age')
+parser.add_argument('--end_age', type=int, default=100, help='End age')
+parser.add_argument('--cohort_sex', type=str, default='Male', help='Cohort sex')
+parser.add_argument('--cohort_race', type=str, default='Black', help='Cohort race')
+parser.add_argument('--num_patients', type=int, default=100_000, help='Number of patients')
+parser.add_argument('--cancer_sites', nargs='+', default=['Lung', 'Colorectal', 'Pancreas', 'Prostate'], help='Cancer sites')
+parser.add_argument('--cancer_sites_ed', nargs='+', default=['Lung', 'Colorectal', 'Pancreas', 'Prostate'], help='Cancer sites for early detection')
+
+args = parser.parse_args()
+
+if len(args.cancer_sites_ed[0])==0:
+    CANCER_SITES_ED = []
+else:
+    CANCER_SITES_ED = args.cancer_sites_ed
+    
+MODE = args.mode
+SAVE_RESULTS = args.save_results
+SOJOURN_TIME = args.sojourn_time
+GOF_SMOOTHING = args.gof_smoothing
+COHORT_YEAR = args.cohort_year
+START_AGE = args.start_age
+END_AGE = args.end_age
+COHORT_SEX = args.cohort_sex
+COHORT_RACE = args.cohort_race
+NUM_PATIENTS = args.num_patients
+CANCER_SITES = args.cancer_sites
+# #######################################
+
+# MODE = 'visualize'
+# # Options:
+# # - calibrate: run simulated annealing for cancer incidence (one site)
+# # - visualize: plot incidence and mortality, output cancer incidence, cancer count, alive count
+# # - cancer_dist: plot cancer pdf and cdf
+# SAVE_RESULTS = True  # whether to save results to file
+# SOJOURN_TIME = False
+# GOF_SMOOTHING = False # whether to add smoothing to model incidence during calibration
+# # Define cohort characteristics
+# COHORT_YEAR = 1960  # birth year of the cohort
+# START_AGE = 0
+# END_AGE = 100
+# COHORT_SEX = 'Male'  # Female/Male
+# COHORT_RACE = 'White'  # Black/White
+# NUM_PATIENTS = 100_000
+# CANCER_SITES = ['Lung', 'Colorectal', 'Pancreas', 'Prostate']
+# # CANCER_SITES_ED = ['Lung', 'Colorectal','Pancreas', 'Prostate'] # cancer types that have screening methods for the early detection 
 # CANCER_SITES_ED = []
 
-# Full list:
-# MP 'Bladder' 'Breast' 'Cervical' 'Colorectal' 'Esophageal' 
-# JP 'Gastric' 'Lung' 'Prostate' 'Uterine'
-# FL 'Pancreas' 'Ovarian' 'Kidney' 'Brain' 'Liver' 'Gallbladder'
 
 # Raise exceptions for male/ovarian, male/uterine, male/cervical, female/prostrate
 if COHORT_SEX == 'Male' and ('Ovarian' in CANCER_SITES or 'Uterine' in CANCER_SITES or 'Cervical' in CANCER_SITES):
@@ -53,7 +97,7 @@ START_TEMP = 10
 STEP_SIZE = 0.01 #0.001
 VERBOSE = True
 MASK_SIZE = 0.5 # value between 0 and 1, the fraction of values to modify each step
-LOAD_LATEST = False # If true, load the latest cancer_pdf from file as starting point
+LOAD_LATEST = True # If true, load the latest cancer_pdf from file as starting point
 # LOAD_LATEST is used to get the most recently calibrated numpy file to run the model
 # First checks if there is a previous file for same sex/race/cancer site, then same sex/cancer site,
 # then same race/cancer site, then same cancer site
@@ -66,7 +110,7 @@ LOAD_LATEST = False # If true, load the latest cancer_pdf from file as starting 
 # You MUST do multi-calibration in ascending order FIRST before doing descending order
 # You CANNOT start multi-cohort calibration in descending order first
 # When you do reverse calibration, remember that the LAST_COHORT looks at the next +1 birth year cohort year
-MULTI_COHORT_CALIBRATION = True
+MULTI_COHORT_CALIBRATION = False
 REVERSE_MULTI_COHORT_CALIBRATION = False # determines whether you want to reverse the cohort year range in calibration
 if MULTI_COHORT_CALIBRATION:
     FIRST_COHORT = 1935
@@ -100,7 +144,7 @@ for i in range(len(CANCER_SITES)):
     s = sojourn[sojourn['Site'].isin([CANCER_SITES[i]])]
     sj_cancer_sites[i] = np.random.triangular(s['Lower'], s['Sojourn Time'], s['Upper'], NUM_PATIENTS).astype(int)
 
-random_numbers_array = np.random.rand(NUM_PATIENTS, 30)
+random_numbers_array = np.random.rand(NUM_PATIENTS, 100)
 rand4step = np.random.randint(0, 100000, size=NUM_ITERATIONS)
 
 # Selecting Cohort

@@ -12,7 +12,7 @@ from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
         
 class Patient:
-    def __init__(self, pid, num_cancers, starting_age=c.START_AGE, rn_pid = None, detected_early = 0):
+    def __init__(self, pid, num_cancers, starting_age=c.START_AGE, rn_pid = None, nh = None):
         """
         Initializes the object with the given `pid`, `age`, `cancer_pdf`.
 
@@ -29,8 +29,12 @@ class Patient:
         self.history = [{self.current_state:self.age}]  # A dictionary to store the state and the age at entry to the state
         self.num_cancers = num_cancers
         self.cancer_type = None # only used for multiple cancers
-        self.detected_early = detected_early
         self.random_numbers = rn_pid
+        self.nh = nh
+        self.local_cancer = False
+        self.early_detected = False
+        self.back_to_healthy = False
+        self.death_age = None      
     
     def __repr__(self) -> str:
         """
@@ -47,7 +51,20 @@ class Patient:
         return f"Patient:{self.pid}, history:{self.history})"
     
     def run(self, cancer_pdf, ac_cdf, cancer_surv_arr, cancer_surv_arr_ed):
+               
         self.reset()  
+        if self.nh is not None:
+            self.cancer_type = list(self.nh[-2].values())[0][1]
+            if self.cancer_type in c.CANCER_SITES_ED:
+                self.current_state = 'Cancer'
+                self.age = list(self.nh[-2].values())[0][0] - list(self.nh[-2].values())[0][2]
+                prev_age = list(self.nh[-3].values())[0]
+                self.age = max(prev_age, self.age)
+                self.local_cancer = True
+                self.early_detected = True
+                self.death_age = list(self.nh[-1].values())[0]
+                self.history = self.nh[:-2]
+                self.history.append({self.current_state: (self.age, self.cancer_type)})  
         
         # store random numbers
         # make sure new random numbers are used for every searchsorted
@@ -67,6 +84,9 @@ class Patient:
                     else:
                         self.current_state = 'Other Death'
                         self.age += time_to_od
+                        if self.local_cancer==True and self.age<self.death_age:
+                            self.current_state = 'Healthy'
+                            self.local_cancer = False
 
                 else:
                     # Create a numpy array to hold all the time_to_cancer for each cancer site
@@ -87,47 +107,56 @@ class Patient:
                     else:
                         self.current_state = 'Other Death'
                         self.age += time_to_od
+                        # print(self.early_detected)
+                        if self.early_detected and self.age<self.death_age:
+                            self.current_state = 'Healthy'
+                            self.local_cancer = False
                         
 
-                if self.detected_early==1 and self.current_state == 'Cancer' and self.cancer_type in c.CANCER_SITES_ED:
+                if self.nh is not None and self.current_state == 'Cancer' and self.back_to_healthy and self.cancer_type in c.CANCER_SITES_ED:
+                    temp_age = list(self.history[-1].values())[0]
                     if self.num_cancers == 1:
                         self.age -= c.sj_cancer_sites[0][self.pid]
                     else:
                         self.age -= c.sj_cancer_sites[i_time_to_cancer][self.pid]
-                    self.age = max(0, self.age)
+                    self.age = max(temp_age, self.age)
                     self.history.append({self.current_state:(self.age, self.cancer_type)})
-                    self.current_state = 'Cancer'
+                    self.early_detected = True
+                    self.local_cancer = True
+                    # self.current_state = 'Cancer'
                     # self.history.append({self.current_state:self.age})
                 else:
+                    self.early_detected = False
+                    self.local_cancer = False
                     if self.current_state == 'Cancer' and self.num_cancers == 1:
                         self.history.append({self.current_state:(self.age, self.cancer_type, c.sj_cancer_sites[0][self.pid])})
                     elif self.current_state == 'Cancer' and self.num_cancers>1:
                         self.history.append({self.current_state:(self.age, self.cancer_type, c.sj_cancer_sites[i_time_to_cancer][self.pid])})
                     else:
                         self.history.append({self.current_state: self.age})
-            
+                    
             if self.current_state == 'Cancer':
                 time_at_risk = min(10, c.END_AGE-self.age-1)
 
                 # If running multiple cancers, make sure to select the correct cancer_surv_array
 
                 if self.num_cancers == 1:
-                    if self.detected_early==1 and self.cancer_type in c.CANCER_SITES_ED:
-                        time_to_cd = np.searchsorted(cancer_surv_arr_ed[self.age - c.START_AGE, :1+time_at_risk, 0], self.random_numbers[r])
-                        r = r+1
-                        time_to_od = np.searchsorted(cancer_surv_arr_ed[self.age - c.START_AGE, :1+time_at_risk, 1], self.random_numbers[r])
-                        r = r+1
+                    if self.early_detected and self.local_cancer:
+                        time_to_cd = np.searchsorted(cancer_surv_arr_ed[self.age - c.START_AGE, :1+time_at_risk, 0],
+                                                     random.choice(self.random_numbers))
+                        time_to_od = np.searchsorted(cancer_surv_arr_ed[self.age - c.START_AGE, :1+time_at_risk, 1],
+                                                     random.choice(self.random_numbers))
                     else:
                         time_to_cd = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 0], self.random_numbers[r])
                         r = r+1
                         time_to_od = np.searchsorted(cancer_surv_arr[self.age - c.START_AGE, :1+time_at_risk, 1], self.random_numbers[r])
                         r = r+1
                 else:
-                    if self.detected_early==1 and self.cancer_type in c.CANCER_SITES_ED:
-                        time_to_cd = np.searchsorted(cancer_surv_arr_ed[c.CANCER_SITES.index(self.cancer_type)][self.age - c.START_AGE, :1+time_at_risk, 0], self.random_numbers[r])
-                        r = r+1
-                        time_to_od = np.searchsorted(cancer_surv_arr_ed[c.CANCER_SITES.index(self.cancer_type)][self.age - c.START_AGE, :1+time_at_risk, 1], self.random_numbers[r])                        
-                        r = r+1                        
+                    if self.early_detected and self.local_cancer:
+                        time_to_cd = np.searchsorted(cancer_surv_arr_ed[c.CANCER_SITES.index(self.cancer_type)][self.age - c.START_AGE, :1+time_at_risk, 0],
+                                                     random.choice(self.random_numbers))
+                        time_to_od = np.searchsorted(cancer_surv_arr_ed[c.CANCER_SITES.index(self.cancer_type)][self.age - c.START_AGE, :1+time_at_risk, 1],
+                                                     random.choice(self.random_numbers))
                     else:
                         time_to_cd = np.searchsorted(cancer_surv_arr[c.CANCER_SITES.index(self.cancer_type)][self.age - c.START_AGE, :1+time_at_risk, 0], self.random_numbers[r])
                         r = r+1
@@ -142,7 +171,14 @@ class Patient:
                 else:
                     self.current_state = 'Healthy'
                     self.age += time_at_risk
-                self.history.append({self.current_state: self.age})     
+                    self.local_cancer = False
+                    self.back_to_healthy = True
+                if self.current_state in ['Other Death', 'Cancer Death']:
+                    if self.death_age is not None and self.age<self.death_age:
+                        self.current_state = 'Cancer'
+                        self.local_cancer = True
+                if self.current_state != 'Cancer':
+                    self.history.append({self.current_state: self.age})      
         return self.history
 
     def reset(self):
@@ -165,18 +201,20 @@ class DiscreteEventSimulation:
         self.patients = []
         if sojourn_time:
             cancer_sites_str = '_'.join(c.CANCER_SITES)
-            with open(c.PATHS['output'] + f"{c.COHORT_YEAR}_{c.COHORT_SEX}_{c.COHORT_RACE}_{cancer_sites_str}_LOG_nh.pickle", 'rb') as handle:
+            with open(c.PATHS['output'] + f"{c.COHORT_YEAR}_{c.COHORT_SEX}_{c.COHORT_RACE}_{cancer_sites_str}_{c.START_AGE}_LOG_nh.pickle", 'rb') as handle:
                 nh = pickle.load(handle)
             for pid in range(self.num_patients):
-                status = [list(s.keys())[0] for s in nh[pid]]
-                    
-                if 'Cancer' in status:
-                    self.patients.append(Patient(pid, num_cancers, starting_age, rn_pid = random_numbers_array[pid, :], detected_early = 1))
+                # status = [list(s.keys())[0] for s in nh[pid]]
+                # death_age = list(nh[pid][-1].values())[0]
+                # if 'Cancer' in status:
+                # print(nh)
+                if list(nh[pid][-1].keys())[0] == 'Cancer Death':
+                    self.patients.append(Patient(pid, num_cancers, starting_age, rn_pid = random_numbers_array[pid, :], nh = nh[pid]))
                 else:
-                    self.patients.append(Patient(pid, num_cancers, starting_age, rn_pid = random_numbers_array[pid, :], detected_early = 0))
+                    self.patients.append(Patient(pid, num_cancers, starting_age, rn_pid = random_numbers_array[pid, :]))
         else:
             for pid in range(self.num_patients):
-                self.patients.append(Patient(pid, num_cancers, starting_age, rn_pid = random_numbers_array[pid, :], detected_early = 0))
+                self.patients.append(Patient(pid, num_cancers, starting_age, rn_pid = random_numbers_array[pid, :]))
         self.log = []  # A log of all patient dictionaries
         self.num_cancers = num_cancers # number of cancer sites we are running
 
@@ -206,11 +244,10 @@ class DiscreteEventSimulation:
         SEED = 42
         random.seed(SEED)
         np.random.seed(SEED)
-
+        
         for patient in self.patients: # runs for each patient
             patient_history = patient.run(cancer_pdf, self.ac_cdf, self.cancer_surv_arr, self.cancer_surv_arr_ed)  # running patient
             self.log.append(patient_history)  # recording to log
-            # print(patient_history)
             try:
                 # if len([1 for h in patient_history if list(h.keys())[0]=='Cancer'])>1: # if value of key "Cancer" is tuple
                 age_at_cancer = [h['Cancer'][0] for h in patient_history if list(h.keys())[0]=='Cancer']
