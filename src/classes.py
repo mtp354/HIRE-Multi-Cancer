@@ -303,6 +303,34 @@ def objective(obs, min_age, max_age, exp):
     return mean_squared_error(obs[start - c.START_AGE: end + 1 - c.START_AGE],
                               exp[start - min_age : end + 1 - min_age])
 
+def process_pdf(candidate):
+    """Apply anchoring, smoothing, and other post-processing to the pdf.
+
+    Args:
+        candidate (np array): cancer pdf
+    """
+    total_ages = c.END_AGE - c.START_AGE + 1
+    def get_start_idx(target_start: int):
+        return max(0, target_start - c.START_AGE)
+    def get_end_idx(target_end: int):
+        return min(total_ages, max(0, target_end - c.START_AGE))
+    
+    # Anchoring
+    candidate[get_start_idx(0):get_end_idx(18)] = 0.0 # set pdf to 0 for ages 0-18
+    candidate[get_start_idx(83):] = 0.0 # set pdf to 0 for ages 83-100
+
+    # Extend min value from 18-40 to 18
+    pdf_18_40 = candidate[get_start_idx(18):get_end_idx(40)]
+    min_18_40 = min(pdf_18_40) # get min val from 18 to 40
+    min_idx = np.argmin(pdf_18_40) + get_start_idx(18) # get idx of min val in whole pdf
+    candidate[18:min_idx] = min_18_40 # set vals from age 18 to min_idx to min val
+
+    # Smoothing
+    ages_linspace = np.linspace(c.START_AGE, c.END_AGE, total_ages)
+    candidate = csaps(ages_linspace, candidate, smooth=0.0001)(ages_linspace).clip(0.0, 1.0)   # smoothing 0.0001
+    return candidate
+
+
 def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE, n_th_iteration = 0):
     """
     Generate a new candidate by adding random noise to the input candidate array, and then clipping the values to be within the range of 0.0 and 1.0.
@@ -317,12 +345,7 @@ def step(candidate, step_size=c.STEP_SIZE, mask_size=c.MASK_SIZE, n_th_iteration
     mask =  randVal_gen.random_sample(candidate.shape) > mask_size # fraction of values to modify
     perturbations = (randVal_gen.random_sample(mask.sum()) * 2 - 1) * step_size
     candidate[mask] += perturbations
-    total_ages = c.END_AGE - c.START_AGE + 1
-    candidate[max(0, 0 - c.START_AGE):min(total_ages, max(0, 18 - c.START_AGE + 1))] = 0.0  # anchoring
-    candidate[max(0, 83 - c.START_AGE):min(total_ages, max(0, 100 - c.START_AGE + 1))] = 0.0
-    ages_linspace = np.linspace(c.START_AGE, c.END_AGE, total_ages)
-    candidate = csaps(ages_linspace, candidate, smooth=0.0001)(ages_linspace).clip(0.0, 1.0)   # smoothing 0.0001
-    return candidate
+    return process_pdf(candidate)
 
 def smooth_incidence(model_incid, window_length, polynomial):
     # Smooth model incidence
@@ -356,7 +379,7 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
         if maxVal >= 300: # if over 300 (really large peak), replace the value to better smoothing
             i_max = np.argmax(modelIncid)
             # Replace value with middle of previous and next model value
-            newVal = (modelIncid[i_max - 1] + modelIncid[i_max + 1])/2
+            newVal = (modelIncid[max(i_max - 1, 0)] + modelIncid[min(i_max + 1, len(modelIncid) - 1)])/2
             modelIncid[i_max] = newVal
         # Smooth initial model incidence
         smoothmodelIncid = smooth_incidence(modelIncid, 21, 3) # use smoothed incidence to calculate gof
@@ -391,7 +414,7 @@ def simulated_annealing(des, cancer_pdf, cancer_inc, min_age, max_age, n_iterati
             if maxVal >= 300:
                 i_max = np.argmax(newmodelIncid)
                 # Replace value with middle of previous and next model value
-                newVal = (newmodelIncid[i_max - 1] + newmodelIncid[i_max + 1])/2
+                newVal = (newmodelIncid[max(i_max - 1, 0)] + newmodelIncid[min(i_max + 1, len(newmodelIncid) - 1)])/2
                 newmodelIncid[i_max] = newVal
             # Smooth new incidence
             smoothnewmodelIncid = smooth_incidence(newmodelIncid, 21, 3)

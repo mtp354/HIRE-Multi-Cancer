@@ -226,7 +226,7 @@ def select_cohort(birthyear, sex, race):
 
     # Loading in cancer pdf, this is the thing that will be optimized over
     CANCER_PDF = 0.002 * np.ones(END_AGE - START_AGE + 1)  # starting from 0 incidence and using bias optimization
-    CANCER_PDF[:35] = 0.0
+    CANCER_PDF[:min(END_AGE - START_AGE + 1, max(0, 35 - START_AGE))] = 0.0 # set ages before 35 to 0.0
     CANCER_PDF_lst = []
 
     if LOAD_LATEST:
@@ -270,7 +270,7 @@ def select_cohort(birthyear, sex, race):
                 raise ValueError("ERROR: LOAD_LATEST fails in configs.py")
             # Read the latest file
             latest_file = max(final_list, key=os.path.getctime)
-            CANCER_PDF = np.load(latest_file)
+            CANCER_PDF = np.load(latest_file)[START_AGE:END_AGE+1]
         else: # multiple cancer sites
             CANCER_PDF_lst = []
             for i in range(len(CANCER_SITES)):
@@ -313,15 +313,15 @@ def select_cohort(birthyear, sex, race):
                     raise ValueError("ERROR: LOAD_LATEST fails in configs.py")
                 # Read the latest file
                 latest_file = max(final_list, key=os.path.getctime)
-                CANCER_PDF = np.load(latest_file)
+                CANCER_PDF = np.load(latest_file)[START_AGE:END_AGE+1]
                 CANCER_PDF_lst.append(CANCER_PDF)
 
     # Loading in cancer survival data
     if len(CANCER_SITES) == 1: # 1 cancer site
-        SURV = SURV[['Cancer_Death','Other_Death']].to_numpy()[START_AGE:]  # 10 year survival
+        SURV = SURV[['Cancer_Death','Other_Death']].to_numpy()[START_AGE:END_AGE+1]  # 10 year survival
         SURV = 1 - SURV**(1/10)  # Converting to annual probability of death (assuming constant rate)
 
-        SURV_ed = SURV_ed[['Cancer_Death','Other_Death']].to_numpy()[START_AGE:]  # 10 year survival
+        SURV_ed = SURV_ed[['Cancer_Death','Other_Death']].to_numpy()[START_AGE:END_AGE+1]  # 10 year survival
         SURV_ed = 1 - SURV_ed**(1/10)  # Converting to annual probability of death (assuming constant rate)
         
         # Converting into probability of death at each follow up year
@@ -338,7 +338,7 @@ def select_cohort(birthyear, sex, race):
     else: # multiple cancer sites
         cancer_surv_arr_lst = []
         for i in range(len(CANCER_SITES)):
-            temp = SURV[SURV['Site']==CANCER_SITES[i]][START_AGE:]
+            temp = SURV[SURV['Site']==CANCER_SITES[i]][START_AGE:END_AGE+1]
             temp = temp[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
             temp = 1 - temp**(1/10)  # Converting to annual probability of death (assuming constant rate)
 
@@ -354,7 +354,7 @@ def select_cohort(birthyear, sex, race):
             
         cancer_surv_arr_lst_ed = []
         for i in range(len(CANCER_SITES_ED)):
-            temp = SURV_ed[SURV_ed['Site']==CANCER_SITES_ED[i]][START_AGE:]
+            temp = SURV_ed[SURV_ed['Site']==CANCER_SITES_ED[i]][START_AGE:END_AGE+1]
             temp = temp[['Cancer_Death','Other_Death']].to_numpy()  # 10 year survival
             temp = 1 - temp**(1/10)  # Converting to annual probability of death (assuming constant rate)
 
