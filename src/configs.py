@@ -37,7 +37,7 @@ parser.add_argument('--num_patients', type=int, default=100_000, help='Number of
 parser.add_argument('--cancer_sites', nargs='+', default=['Lung', 'Colorectal', 'Pancreas', 'Prostate'], help='Cancer sites')
 parser.add_argument('--cancer_sites_ed', nargs='+', default=['Lung', 'Colorectal', 'Pancreas', 'Prostate'], help='Cancer sites for early detection')
 
-args = parser.parse_args()
+args, unknown = parser.parse_known_args()
 
 if len(args.cancer_sites_ed[0])==0:
     CANCER_SITES_ED = []

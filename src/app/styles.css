@@ -11,7 +11,7 @@
   filter: var(--bs-btn-close-white-filter);
 } */
 
-#intro_text {
+.card-text {
   position: absolute;
   margin-bottom: 0;
   height: calc(100% - var(--bs-card-spacer-y));
@@ -26,6 +26,6 @@
   position: relative;
 }
 
-#intro_text ~ #plot_incidence .user-select-none.svg-container {
+.card-text ~ #plot_incidence .user-select-none.svg-container {
   display: none;
 }

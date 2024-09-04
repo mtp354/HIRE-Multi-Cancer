@@ -114,6 +114,24 @@ if __name__ == '__main__':
             plt.title(f"Cancer Incidence by Age for Birthyear={c.COHORT_YEAR}, Sex={c.COHORT_SEX}, Race={c.COHORT_RACE}, Site={str(c.CANCER_SITES)}")
             plt.show()
 
+    elif c.MODE == 'app':
+        # app_dir = Path(__file__).parent / "app/data/incidence"
+        # filename = f"{str(app_dir)}/{c.COHORT_YEAR}_{c.COHORT_SEX}_{c.COHORT_RACE}_{str(c.CANCER_SITES)}.csv"
+        
+        # Initialize cohort-specific parameters
+        ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, cancer_surv_arr_ed, CANCER_INC = c.select_cohort(c.COHORT_YEAR, c.COHORT_SEX, c.COHORT_RACE)
+        model = DiscreteEventSimulation(ac_cdf, cancer_surv_arr, cancer_surv_arr_ed, len(c.CANCER_SITES))
+        model.run(CANCER_PDF).cancerIncArr
+    
+        # Output model incidence, cancer count, alive count
+        df = pd.DataFrame(model.cancerIncArr, columns = ['Incidence per 100k'])
+        df['Cancer_Count'] = model.cancerCountArr
+        df['Alive_Count'] = model.aliveCountArr
+        df = df.reset_index().rename(columns={'index': 'Age'})
+
+        # Get CSV string and print to stdout to be parsed by frontend
+        print(df.to_csv())
+
     elif c.MODE == 'cancer_dist': # Saves a plot of the calibrated cancer cdf and pdf
         # Initialize cohort-specific parameters
         ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, cancer_surv_arr_ed, CANCER_INC = c.select_cohort(c.COHORT_YEAR, c.COHORT_SEX, c.COHORT_RACE)
