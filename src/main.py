@@ -3,9 +3,9 @@ import numpy as np
 from timeit import default_timer as timer
 from datetime import timedelta, datetime
 import matplotlib.pyplot as plt
-import configs as c
-from configs import Config
-from classes import *
+import src.configs as c
+from src.configs import Config
+from src.classes import *
 from tqdm import tqdm
 import multiprocessing as mp
 import pandas as pd
@@ -65,17 +65,18 @@ def run_model(cancer_sites: [""], cohort: int, sex: str, race: str, start_age = 
                     cancer_sites=cancer_sites,
                     cancer_sites_ed=[],
                     )
-    ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, cancer_surv_arr_ed, sj_cancer_sites, CANCER_INC = c.select_cohort(config)
-    model = DiscreteEventSimulation(
-        ac_cdf, cancer_surv_arr, cancer_surv_arr_ed, sj_cancer_sites, len(cancer_sites), config)
-    model.run(CANCER_PDF)
-    inc_df = pd.DataFrame(model.cancerIncArr, columns=["Incidence per 100k"])
-    inc_df = inc_df.reset_index().rename(columns={'index': 'Age'})
+    inc_df = main(config)
+    # ac_cdf, min_age, max_age, CANCER_PDF, cancer_surv_arr, cancer_surv_arr_ed, sj_cancer_sites, CANCER_INC = c.select_cohort(config)
+    # model = DiscreteEventSimulation(
+    #     ac_cdf, cancer_surv_arr, cancer_surv_arr_ed, sj_cancer_sites, len(cancer_sites), config)
+    # model.run(CANCER_PDF)
+    # inc_df = pd.DataFrame(model.cancerIncArr, columns=["Incidence per 100k"])
+    # inc_df = inc_df.reset_index().rename(columns={'index': 'Age'})
 
-    # Output model incidence
-    if save:
-        app_dir = Path(__file__).parent / "app/data/incidence"
-        inc_df.to_csv(f"{str(app_dir)}/{cohort}_{sex}_{race}_{cancer_sites[0]}.xlsx")
+    # # Output model incidence
+    # if save:
+    #     app_dir = Path(__file__).parent / "app/data/incidence"
+    #     inc_df.to_csv(f"{str(app_dir)}/{cohort}_{sex}_{race}_{cancer_sites[0]}.xlsx")
     return inc_df
 
 
@@ -183,8 +184,9 @@ def main(config: Config = None):
         df['Alive_Count'] = model.aliveCountArr
         df = df.reset_index().rename(columns={'index': 'Age'})
 
-        # Get CSV string and print to stdout to be parsed by frontend
-        print(df.to_csv())
+        # # Get CSV string and print to stdout to be parsed by frontend
+        # print(df.to_csv())
+        return df
 
     elif config.MODE == 'cancer_dist': # Saves a plot of the calibrated cancer cdf and pdf
         # Initialize cohort-specific parameters

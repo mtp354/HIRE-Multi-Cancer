@@ -118,68 +118,68 @@ def server(input, output, session):
 
             inc_df = pd.DataFrame()
 
-            # Call main.py with the specified arguments
-            result = subprocess.run(
-                [
-                    "python3",
-                    str(src_dir / "main.py"),
-                    "--mode",
-                    "app",
-                    "--sojourn_time",
-                    "False",
-                    "--cohort_year",
-                    str(input.cohort()),
-                    "--start_age",
-                    str(input.age_interval()[0]),
-                    "--end_age",
-                    str(input.age_interval()[1]),
-                    "--cohort_sex",
-                    input.sex(),
-                    "--cohort_race",
-                    input.race()[3:],
-                    "--cancer_sites",
-                    str(input.site()),
-                    "--cancer_sites_ed",
-                    "",
-                ],
-                env={"PYTHONPATH": str(src_dir.parent)},
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+            # # Call main.py with the specified arguments
+            # result = subprocess.run(
+            #     [
+            #         "python3",
+            #         str(src_dir / "main.py"),
+            #         "--mode",
+            #         "app",
+            #         "--sojourn_time",
+            #         "False",
+            #         "--cohort_year",
+            #         str(input.cohort()),
+            #         "--start_age",
+            #         str(input.age_interval()[0]),
+            #         "--end_age",
+            #         str(input.age_interval()[1]),
+            #         "--cohort_sex",
+            #         input.sex(),
+            #         "--cohort_race",
+            #         input.race()[3:],
+            #         "--cancer_sites",
+            #         str(input.site()),
+            #         "--cancer_sites_ed",
+            #         "",
+            #     ],
+            #     env={"PYTHONPATH": str(src_dir.parent)},
+            #     capture_output=True,
+            #     text=True,
+            #     check=False,
+            # )
 
-            if result.returncode != 0:  # Error
-                print("Error:", result.stderr)
-                ui.insert_ui(
-                    ui.h6(
-                        f"Error: {result.stderr}",
-                        id="plot_error_text",
-                        class_="card-text d-flex justify-content-center align-items-center flex-grow-1",
-                        style="color: red;",
-                    ),
-                    selector="#plot_card",
-                )
-                return go.Figure(
-                    go.Scatter(
-                        x=pd.Series(dtype=object),
-                        y=pd.Series(dtype=object),
-                        mode="markers",
-                    )
-                )
+            # if result.returncode != 0:  # Error
+            #     print("Error:", result.stderr)
+            #     ui.insert_ui(
+            #         ui.h6(
+            #             f"Error: {result.stderr}",
+            #             id="plot_error_text",
+            #             class_="card-text d-flex justify-content-center align-items-center flex-grow-1",
+            #             style="color: red;",
+            #         ),
+            #         selector="#plot_card",
+            #     )
+            #     return go.Figure(
+            #         go.Scatter(
+            #             x=pd.Series(dtype=object),
+            #             y=pd.Series(dtype=object),
+            #             mode="markers",
+            #         )
+            #     )
             
             # Remove text from a previous error
             ui.remove_ui("#plot_error_text")
 
-            inc_df = pd.read_csv(StringIO(result.stdout))
-            # inc_df = main.run_model(
-            #     cancer_sites=[input.site()],
-            #     cohort=input.cohort(),
-            #     sex=input.sex(),
-            #     race=input.race(),
-            #     start_age=input.age_interval()[0],
-            #     end_age=input.age_interval()[1],
-            #     save=False,
-            # )
+            # inc_df = pd.read_csv(StringIO(result.stdout))
+            inc_df = main.run_model(
+                cancer_sites=input.site(),
+                cohort=input.cohort(),
+                sex=input.sex(),
+                race=input.race(),
+                start_age=input.age_interval()[0],
+                end_age=input.age_interval()[1],
+                save=False,
+            )
             inc_df = inc_df.iloc[:-1]
             fig = px.line(
                 data_frame=inc_df,

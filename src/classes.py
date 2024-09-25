@@ -1,7 +1,7 @@
 # Defines all classes and functions used in the simulation
 import numpy as np
-import configs as c
-from configs import Config
+import src.configs as c
+from src.configs import Config
 from sklearn.metrics import mean_squared_error
 from csaps import csaps
 from tqdm import tqdm
